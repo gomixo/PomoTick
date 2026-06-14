@@ -82,7 +82,9 @@ class PomoTickApp : Application() {
                 longBreakMinutes = settingsStore.longBreakMinutes.first(),
                 vibrationStrength = settingsStore.vibrationStrength.first(),
                 persistentReminder = settingsStore.persistentReminder.first(),
-                hasShownBatteryHint = settingsStore.hasShownBatteryHint.first()
+                hasShownBatteryHint = settingsStore.hasShownBatteryHint.first(),
+                selectedPhase = settingsStore.selectedPhase.first(),
+                lastLaunchDate = settingsStore.lastLaunchDate.first()
             )
         }
         settingsStore.focusMinutes.onEach { v ->
@@ -102,6 +104,12 @@ class PomoTickApp : Application() {
         }.launchIn(appScope)
         settingsStore.hasShownBatteryHint.onEach { h ->
             _settingsSnapshot.value = _settingsSnapshot.value.copy(hasShownBatteryHint = h)
+        }.launchIn(appScope)
+        settingsStore.selectedPhase.onEach { phase ->
+            _settingsSnapshot.value = _settingsSnapshot.value.copy(selectedPhase = phase)
+        }.launchIn(appScope)
+        settingsStore.lastLaunchDate.onEach { date ->
+            _settingsSnapshot.value = _settingsSnapshot.value.copy(lastLaunchDate = date)
         }.launchIn(appScope)
     }
 
@@ -133,6 +141,7 @@ class PomoTickApp : Application() {
             }
             is TimerEffect.SaveRuntime,
             is TimerEffect.ClearRuntime,
+            is TimerEffect.SaveSelectedPhase,
             is TimerEffect.RecordSession -> {
                 // 兜底：这些 effect 由 TimerRepository 直接执行，不应到达此处。
                 // 若到达，说明 Repository 漏处理了——打日志便于排查。

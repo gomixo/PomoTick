@@ -6,9 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.RingtoneManager
-import android.net.Uri
 import androidx.core.app.NotificationCompat
 import com.pomotick.MainActivity
 import com.pomotick.R
@@ -25,7 +22,7 @@ import com.pomotick.timer.TimerPhase
 object NotificationFactory {
 
     const val CHANNEL_ID_TIMER = "pomotick_timer"
-    const val CHANNEL_ID_REMINDER = "pomotick_reminder_sound_v1"
+    const val CHANNEL_ID_REMINDER = "pomotick_reminder_silent_v2"
 
     const val NOTIFICATION_ID_TIMER = 1001
     const val NOTIFICATION_ID_REMINDER = 1002
@@ -51,7 +48,6 @@ object NotificationFactory {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = context.getString(R.string.notif_channel_reminder_desc)
-            setSound(defaultReminderSoundUri(), reminderAudioAttributes())
             enableVibration(false)  // 震动由 VibrationHelper 控制
             setShowBadge(true)
         }
@@ -137,22 +133,12 @@ object NotificationFactory {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
-            .setSound(defaultReminderSoundUri())
+            .setSilent(true)
             .setContentIntent(pendingIntent)
             // 息屏时弹出 Activity（替代废弃的 wake lock）
             .setFullScreenIntent(pendingIntent, /* highPriority = */ true)
             .build()
     }
-
-    private fun defaultReminderSoundUri(): Uri =
-        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
-    private fun reminderAudioAttributes(): AudioAttributes =
-        AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ALARM)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
 
     private fun progressPercent(remainingMs: Long, phase: TimerPhase, context: Context): Int {
         // 用设置中的计划时长估算进度（不够精确但够"看起来在跑"）

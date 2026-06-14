@@ -67,6 +67,7 @@ class TimerRepository(
                 when (effect) {
                     is TimerEffect.SaveRuntime -> runtime.save(effect.state)
                     is TimerEffect.ClearRuntime -> runtime.clear()
+                    is TimerEffect.SaveSelectedPhase -> settings.setSelectedPhase(effect.phase)
                     is TimerEffect.RecordSession -> dao.insert(effect.session)
                     is TimerEffect.StartForegroundService,
                     is TimerEffect.StopForegroundService,

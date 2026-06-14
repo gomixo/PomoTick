@@ -61,6 +61,21 @@ class TimerEngineTest {
     }
 
     @Test
+    fun `start SHORT_BREAK creates 5 minute RUNNING state`() {
+        val planned = 5L * 60L * 1000L
+        val result = TimerEngine.process(
+            TimerEvent.Start(NOW, TimerPhase.SHORT_BREAK, planned),
+            current = null,
+            now = NOW
+        )
+        val state = result.newState!!
+        assertEquals(TimerPhase.SHORT_BREAK, state.phase)
+        assertEquals(TimerRunState.RUNNING, state.runState)
+        assertEquals(planned, state.plannedDurationMillis)
+        assertEquals(NOW + planned, state.targetEndAtEpochMillis)
+    }
+
+    @Test
     fun `pause from RUNNING sets pausedAt`() {
         val result = TimerEngine.process(TimerEvent.Pause(NOW + 1000L), running(), NOW + 1000L)
         val state = result.newState!!
@@ -250,6 +265,113 @@ class TimerEngineTest {
         val newState = result.newState!!
         assertEquals(TimerPhase.SHORT_BREAK, newState.phase)
         assertEquals(5L * 60L * 1000L, newState.plannedDurationMillis)
+    }
+
+    @Test
+    fun `stop ringing after focus records session and prepares short break`() {
+        val ringing = running().copy(
+            runState = TimerRunState.RINGING,
+            sessionCompletionRecorded = false
+        )
+        val result = TimerEngine.process(
+            TimerEvent.StopRingingAndPrepareNext(TARGET_END),
+            ringing,
+            TARGET_END
+        )
+        assertNull(result.newState)
+        assertEquals(1, result.effects.filterIsInstance<TimerEffect.RecordSession>().size)
+        assertEquals(
+            TimerPhase.SHORT_BREAK,
+            result.effects.filterIsInstance<TimerEffect.SaveSelectedPhase>().single().phase
+        )
+        assertTrue(result.effects.any { it is TimerEffect.ClearRuntime })
+        assertTrue(result.effects.any { it is TimerEffect.StopReminder })
+        assertTrue(result.effects.any { it is TimerEffect.StopForegroundService })
+        assertTrue(
+            result.effects.indexOfFirst { it is TimerEffect.StopReminder } <
+                result.effects.indexOfFirst { it is TimerEffect.StopForegroundService }
+        )
+    }
+
+    @Test
+    fun `stop ringing after short break prepares focus`() {
+        val ringing = running().copy(
+            phase = TimerPhase.SHORT_BREAK,
+            runState = TimerRunState.RINGING,
+            sessionCompletionRecorded = false
+        )
+        val result = TimerEngine.process(
+            TimerEvent.StopRingingAndPrepareNext(TARGET_END),
+            ringing,
+            TARGET_END
+        )
+        assertNull(result.newState)
+        assertEquals(
+            TimerPhase.FOCUS,
+            result.effects.filterIsInstance<TimerEffect.SaveSelectedPhase>().single().phase
+        )
+    }
+
+    @Test
+    fun `reset running clears runtime and does not record completed session`() {
+        val result = TimerEngine.process(
+            TimerEvent.Reset(NOW + 1000L, TimerPhase.FOCUS),
+            running(),
+            NOW + 1000L
+        )
+        assertNull(result.newState)
+        assertTrue(result.effects.none { it is TimerEffect.RecordSession })
+        assertTrue(result.effects.any { it is TimerEffect.ClearRuntime })
+        assertTrue(result.effects.any { it is TimerEffect.StopReminder })
+        assertTrue(result.effects.any { it is TimerEffect.StopForegroundService })
+    }
+
+    @Test
+    fun `reset paused clears runtime and does not record completed session`() {
+        val paused = running().copy(
+            runState = TimerRunState.PAUSED,
+            pausedAtEpochMillis = NOW + 1000L
+        )
+        val result = TimerEngine.process(
+            TimerEvent.Reset(NOW + 2000L, TimerPhase.FOCUS),
+            paused,
+            NOW + 2000L
+        )
+        assertNull(result.newState)
+        assertTrue(result.effects.none { it is TimerEffect.RecordSession })
+        assertTrue(result.effects.any { it is TimerEffect.ClearRuntime })
+        assertTrue(result.effects.any { it is TimerEffect.StopReminder })
+    }
+
+    @Test
+    fun `reset ringing clears runtime stops reminder and does not record session`() {
+        val ringing = running().copy(runState = TimerRunState.RINGING)
+        val result = TimerEngine.process(
+            TimerEvent.Reset(TARGET_END, TimerPhase.FOCUS),
+            ringing,
+            TARGET_END
+        )
+        assertNull(result.newState)
+        assertTrue(result.effects.none { it is TimerEffect.RecordSession })
+        assertTrue(result.effects.any { it is TimerEffect.ClearRuntime })
+        assertTrue(result.effects.any { it is TimerEffect.StopReminder })
+    }
+
+    @Test
+    fun `switch phase saves selected phase and clears active runtime`() {
+        val result = TimerEngine.process(
+            TimerEvent.SwitchPhase(TimerPhase.SHORT_BREAK),
+            running(),
+            NOW
+        )
+        assertNull(result.newState)
+        assertEquals(
+            TimerPhase.SHORT_BREAK,
+            result.effects.filterIsInstance<TimerEffect.SaveSelectedPhase>().single().phase
+        )
+        assertTrue(result.effects.any { it is TimerEffect.ClearRuntime })
+        assertTrue(result.effects.any { it is TimerEffect.StopReminder })
+        assertTrue(result.effects.any { it is TimerEffect.StopForegroundService })
     }
 
     @Test

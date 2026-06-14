@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.pomotick.timer.TimerPhase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -29,6 +31,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         val VIBRATION_STRENGTH = intPreferencesKey("settings_vibration_strength")
         val PERSISTENT_REMINDER = booleanPreferencesKey("settings_persistent_reminder")
         val HAS_SHOWN_BATTERY_HINT = booleanPreferencesKey("settings_has_shown_battery_hint")
+        val SELECTED_PHASE = stringPreferencesKey("settings_selected_phase")
+        val LAST_LAUNCH_DATE = stringPreferencesKey("settings_last_launch_date")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[Keys.FOCUS_MINUTES] ?: 25 }
@@ -37,6 +41,12 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     val vibrationStrength: Flow<Int> = dataStore.data.map { it[Keys.VIBRATION_STRENGTH] ?: 2 }
     val persistentReminder: Flow<Boolean> = dataStore.data.map { it[Keys.PERSISTENT_REMINDER] ?: true }
     val hasShownBatteryHint: Flow<Boolean> = dataStore.data.map { it[Keys.HAS_SHOWN_BATTERY_HINT] ?: false }
+    val selectedPhase: Flow<TimerPhase> = dataStore.data.map { prefs ->
+        prefs[Keys.SELECTED_PHASE]
+            ?.let { runCatching { TimerPhase.valueOf(it) }.getOrNull() }
+            ?: TimerPhase.FOCUS
+    }
+    val lastLaunchDate: Flow<String?> = dataStore.data.map { it[Keys.LAST_LAUNCH_DATE] }
 
     suspend fun setFocusMinutes(minutes: Int) {
         dataStore.edit { it[Keys.FOCUS_MINUTES] = minutes.coerceIn(1, 180) }
@@ -62,6 +72,14 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[Keys.HAS_SHOWN_BATTERY_HINT] = true }
     }
 
+    suspend fun setSelectedPhase(phase: TimerPhase) {
+        dataStore.edit { it[Keys.SELECTED_PHASE] = phase.name }
+    }
+
+    suspend fun setLastLaunchDate(date: String) {
+        dataStore.edit { it[Keys.LAST_LAUNCH_DATE] = date }
+    }
+
     companion object {
         fun from(context: Context): SettingsStore = SettingsStore(context.applicationContext.pomotickDataStore)
     }
@@ -83,7 +101,9 @@ data class SettingsSnapshot(
     val longBreakMinutes: Int = 15,
     val vibrationStrength: Int = 2,
     val persistentReminder: Boolean = true,
-    val hasShownBatteryHint: Boolean = false
+    val hasShownBatteryHint: Boolean = false,
+    val selectedPhase: TimerPhase = TimerPhase.FOCUS,
+    val lastLaunchDate: String? = null
 ) {
     companion object {
         val DEFAULT = SettingsSnapshot()

@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.Window
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,11 +25,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomotick.timer.TimerRunState
 import com.pomotick.ui.TimerViewModel
 import com.pomotick.ui.TimerViewModelFactory
-import com.pomotick.ui.screens.QuickActionsScreen
 import com.pomotick.ui.screens.ReminderScreen
-import com.pomotick.ui.screens.SettingsScreen
 import com.pomotick.ui.screens.TimerScreen
-import com.pomotick.ui.screens.TodayStatsScreen
 import com.pomotick.ui.theme.PomoTickTheme
 
 /**
@@ -52,7 +51,12 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
         super.onCreate(savedInstanceState)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
 
         // API 33+：请求 POST_NOTIFICATIONS 运行时权限
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -75,7 +79,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Screen {
-    TIMER, QUICK_ACTIONS, REMINDER, SETTINGS, STATS
+    TIMER, REMINDER
 }
 
 @Composable
@@ -108,23 +112,8 @@ private fun PomoTickRoot() {
 
     when (screen) {
         Screen.TIMER -> TimerScreen(
-            viewModel = viewModel,
-            onNavigateToQuickActions = { screen = Screen.QUICK_ACTIONS },
-            onNavigateToSettings = { screen = Screen.SETTINGS },
-            onNavigateToStats = { screen = Screen.STATS }
-        )
-        Screen.QUICK_ACTIONS -> QuickActionsScreen(
-            viewModel = viewModel,
-            onBack = { screen = Screen.TIMER }
+            viewModel = viewModel
         )
         Screen.REMINDER -> ReminderScreen(viewModel = viewModel)
-        Screen.SETTINGS -> SettingsScreen(
-            viewModel = viewModel,
-            onBack = { screen = Screen.TIMER }
-        )
-        Screen.STATS -> TodayStatsScreen(
-            viewModel = viewModel,
-            onBack = { screen = Screen.TIMER }
-        )
     }
 }

@@ -35,6 +35,7 @@ data class TimerUiState(
     val phase: TimerPhase?,
     val runState: TimerRunState,
     val settings: SettingsSnapshot,
+    val selectedPhase: TimerPhase,
     val todayCount: Int = 0,
     val todayFocusMillis: Long = 0L,
     val latestCompleted: TimerSession? = null
@@ -45,7 +46,8 @@ data class TimerUiState(
             remainingMs = 0L,
             phase = null,
             runState = TimerRunState.IDLE,
-            settings = SettingsSnapshot.DEFAULT
+            settings = SettingsSnapshot.DEFAULT,
+            selectedPhase = TimerPhase.FOCUS
         )
     }
 }
@@ -79,8 +81,9 @@ class TimerViewModel(
                     current.copy(
                         runtime = runtime,
                         runState = runtime?.runState ?: TimerRunState.IDLE,
-                        phase = runtime?.phase,
-                        remainingMs = runtime?.let { remainingMillis(now, it) } ?: 0L
+                        phase = runtime?.phase ?: current.selectedPhase,
+                        remainingMs = runtime?.let { remainingMillis(now, it) }
+                            ?: durationFor(current.selectedPhase, current.settings)
                     )
                 }
             }
@@ -102,8 +105,12 @@ class TimerViewModel(
      */
     fun onAppStart() {
         viewModelScope.launch {
+            val pomotickApp = app as PomoTickApp
             val initial = repo.currentRuntime.first()
-            if (initial == null) return@launch
+            if (initial == null) {
+                initializeIdleLaunch(pomotickApp)
+                return@launch
+            }
 
             when (initial.runState) {
                 TimerRunState.RUNNING -> {
@@ -126,8 +133,19 @@ class TimerViewModel(
                     // 已 RINGING → 重启 Service 恢复震动提醒；不重复 StartReminder（避免重置节奏）
                     com.pomotick.service.TimerForegroundService.start(app)
                 }
-                TimerRunState.IDLE, TimerRunState.FINISHED -> Unit
+                TimerRunState.IDLE, TimerRunState.FINISHED -> {
+                    repo.handleEvent(TimerEvent.Reset(System.currentTimeMillis(), initial.phase))
+                    initializeIdleLaunch(pomotickApp)
+                }
             }
+        }
+    }
+
+    private suspend fun initializeIdleLaunch(pomotickApp: PomoTickApp) {
+        val today = todayKey()
+        if (pomotickApp.settingsStore.lastLaunchDate.first() != today) {
+            pomotickApp.settingsStore.setSelectedPhase(TimerPhase.FOCUS)
+            pomotickApp.settingsStore.setLastLaunchDate(today)
         }
     }
 
@@ -149,7 +167,34 @@ class TimerViewModel(
                     persistentReminder = persistent
                 )
             }.collect { snap ->
-                _state.update { it.copy(settings = snap) }
+                _state.update {
+                    it.copy(
+                        settings = snap.copy(
+                            selectedPhase = it.selectedPhase,
+                            lastLaunchDate = it.settings.lastLaunchDate
+                        )
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            val pomotickApp = app as PomoTickApp
+            pomotickApp.settingsStore.selectedPhase.collect { phase ->
+                _state.update {
+                    it.copy(
+                        selectedPhase = phase,
+                        phase = it.runtime?.phase ?: phase,
+                        remainingMs = it.runtime?.let { runtime ->
+                            remainingMillis(System.currentTimeMillis(), runtime)
+                        } ?: durationFor(phase, it.settings)
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            val pomotickApp = app as PomoTickApp
+            pomotickApp.settingsStore.lastLaunchDate.collect { date ->
+                _state.update { it.copy(settings = it.settings.copy(lastLaunchDate = date)) }
             }
         }
     }
@@ -165,7 +210,8 @@ class TimerViewModel(
                 val runtime = _state.value.runtime
                 _state.update {
                     it.copy(
-                        remainingMs = runtime?.let { r -> remainingMillis(now, r) } ?: 0L
+                        remainingMs = runtime?.let { r -> remainingMillis(now, r) }
+                            ?: durationFor(it.selectedPhase, it.settings)
                     )
                 }
             }
@@ -176,8 +222,46 @@ class TimerViewModel(
 
     fun onStartFocus() {
         viewModelScope.launch {
-            val plannedMs = _state.value.settings.focusMinutes * 60_000L
-            repo.handleEvent(TimerEvent.Start(System.currentTimeMillis(), TimerPhase.FOCUS, plannedMs))
+            startPhase(TimerPhase.FOCUS)
+        }
+    }
+
+    fun onStartSelectedPhase() {
+        viewModelScope.launch {
+            startPhase(_state.value.selectedPhase)
+        }
+    }
+
+    fun onStartOrResume() {
+        when (_state.value.runState) {
+            TimerRunState.PAUSED -> onResume()
+            else -> onStartSelectedPhase()
+        }
+    }
+
+    private suspend fun startPhase(phase: TimerPhase) {
+        val plannedMs = durationFor(phase, _state.value.settings)
+        repo.handleEvent(TimerEvent.Start(System.currentTimeMillis(), phase, plannedMs))
+    }
+
+    fun onResetTimer() {
+        viewModelScope.launch {
+            repo.handleEvent(TimerEvent.Reset(System.currentTimeMillis(), _state.value.selectedPhase))
+        }
+    }
+
+    fun onSwitchPhase() {
+        val current = _state.value
+        if (current.runState == TimerRunState.RUNNING || current.runState == TimerRunState.RINGING) return
+        viewModelScope.launch {
+            val next = nextIdlePhase(current.runtime?.phase ?: current.selectedPhase)
+            repo.handleEvent(TimerEvent.SwitchPhase(next))
+        }
+    }
+
+    fun onStopRinging() {
+        viewModelScope.launch {
+            repo.handleEvent(TimerEvent.StopRingingAndPrepareNext(System.currentTimeMillis()))
         }
     }
 
@@ -274,6 +358,21 @@ class TimerViewModel(
         }
         return cal.timeInMillis
     }
+
+    private fun todayKey(): String = java.time.LocalDate.now().toString()
+
+    private fun durationFor(phase: TimerPhase, settings: SettingsSnapshot): Long =
+        when (phase) {
+            TimerPhase.FOCUS -> settings.focusMinutes
+            TimerPhase.SHORT_BREAK -> settings.shortBreakMinutes
+            TimerPhase.LONG_BREAK -> settings.longBreakMinutes
+        } * 60_000L
+
+    private fun nextIdlePhase(phase: TimerPhase): TimerPhase =
+        when (phase) {
+            TimerPhase.FOCUS -> TimerPhase.SHORT_BREAK
+            TimerPhase.SHORT_BREAK, TimerPhase.LONG_BREAK -> TimerPhase.FOCUS
+        }
 
     companion object {
         /** 每完成 N 个 FOCUS 后切换到 LONG_BREAK */

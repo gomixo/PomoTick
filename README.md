@@ -1,68 +1,94 @@
 # PomoTick
 
-> Wear OS 番茄计时 MVP — 优先适配 OPPO Watch 4 Pro（方形 1.91" / ColorOS Watch V7.1 / Android 11 / API 30）。
+PomoTick is a lightweight tomato timer built first for **OPPO Watch 4 Pro**.
 
-## 技术栈
+Target device:
 
-- **语言**：Kotlin
-- **UI**：Jetpack Compose for Wear OS
-- **架构**：纯函数 TimerEngine + Repository + ViewModel（无 Hilt / 无 Navigation 框架）
-- **持久化**：Room（已完成 session）+ DataStore Preferences（运行时状态 + 设置）
-- **后台**：ForegroundService（`specialUse` 前台服务类型）+ `VibrationEffect.createWaveform`
+- OPPO Watch 4 Pro
+- ColorOS Watch V7.1
+- Android 11 / API 30
+- Square 1.91-inch screen
 
-## 开发要求
+The MVP focuses on reliable timing, clear watch-first controls, and strong bounded reminders.
 
-- Android Studio 2024.x
-- JDK 17（AS 内置）
-- Android SDK API 30、33、34
-- Wear OS Square 模拟器（API 34）——主调试环境
-- 可选：OPPO Watch 4 Pro 真机（API 30）
+## Current MVP Flow
 
-## 构建命令
+- Launch shows the selected phase duration: focus `25:00` or short break `05:00`.
+- The main screen has three actions: start/pause, reset, and switch phase.
+- Timer truth comes from timestamps, not from a per-second loop.
+- When a phase ends, the app rings and vibrates, then shows a reminder screen.
+- Tapping `停止响铃` stops sound/vibration/notification, records the completed session, prepares the next phase, and returns to the idle timer screen.
 
-```bash
-# 编译
-./gradlew :app:assembleDebug
+## Tech Stack
 
-# 单测
-./gradlew :app:testDebugUnitTest
+- Kotlin
+- Jetpack Compose / Material 3
+- Room for completed sessions
+- DataStore Preferences for runtime state and settings
+- ForegroundService for active timers
+- `VibrationEffect.createWaveform()` for API 30+ vibration
 
-# 安装到模拟器/真机
-./gradlew :app:installDebug
+MVP intentionally avoids Hilt, Dagger, complex Navigation frameworks, Google Play Services dependency for core behavior, charts, and extra modules.
 
-# 清理
-./gradlew clean
+## Build Requirements
+
+- JDK 17
+- Android SDK installed
+- Android Studio recommended
+- Real-device testing recommended on OPPO Watch 4 Pro
+
+The project uses Gradle Wrapper, so a separate Gradle install is not required.
+
+## Commands
+
+From the project root:
+
+```powershell
+.\gradlew.bat :app:assembleDebug --no-daemon
+.\gradlew.bat :app:testDebugUnitTest --no-daemon
+.\gradlew.bat :app:installDebug --no-daemon
 ```
 
-## 项目结构
+If the watch launcher keeps showing an old app icon, uninstall the debug package first:
 
+```powershell
+adb uninstall com.pomotick.debug
+.\gradlew.bat :app:installDebug --no-daemon
 ```
+
+The debug APK is generated at:
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Project Structure
+
+```text
 app/src/main/java/com/pomotick/
 ├── MainActivity.kt
-├── data/          # Room + DataStore
-├── timer/         # TimerEngine（纯函数）
-├── service/       # ForegroundService
-├── reminder/      # 震动提醒
-├── ui/            # ViewModel + Screen
-└── ...
+├── PomoTickApp.kt
+├── data/       Room, DataStore, repository
+├── timer/      pure timer state machine
+├── service/    foreground timer service and notifications
+├── reminder/   vibration and reminder sound
+└── ui/         ViewModel, screens, theme
 ```
 
-## MVP 5 屏
+## Real Watch Checks
 
-1. **TimerScreen** — 主倒计时（25:00 / 5:00 / 15:00）
-2. **QuickActionsScreen** — 延长 5 分钟 / 提前结束 / 放弃
-3. **ReminderScreen** — 提醒响应（知道了 / 开始休息 / 继续专注）
-4. **SettingsScreen** — 时长配置 / 震动强度 / 持续提醒
-5. **TodayStatsScreen** — 今日完成数 / 今日专注时长 / 最近完成
+Prioritize these checks before treating a build as usable:
 
-## 关键约束（来自 AGENTS.md）
+- First launch of the day shows `25:00`.
+- Switching to break and reopening still shows `05:00` on the same day.
+- Start, pause, reset, and switch phase are easy to tap.
+- `25:00`, `05:00`, `04:09`, and `00:59` render fully on the watch.
+- Screen-off/background completion triggers reminder.
+- Sound and vibration stop immediately after tapping `停止响铃`.
+- After stopping a focus reminder, the idle screen prepares break; after stopping a break reminder, it prepares focus.
 
-- `minSdk = 30`，`targetSdk = 34`
-- `android.hardware.type.watch` = `required="false"`
-- **不**依赖 Google Play Services、Hilt、Vico、Navigation
-- 计时以时间戳为唯一真实来源，不依赖每秒后台循环
-- 强提醒最多重复 10 次（每 30 秒一次）
+## Notes
 
-## 真机调试
-
-参考 `WearOS番茄计时APP环境配置指南.md` §9。
+- `android.hardware.type.watch` is declared with `required="false"` for ColorOS Watch compatibility.
+- The launcher icon is generated as an adaptive icon with a safe-zone tomato foreground and light tomato-red background for ColorOS Watch launcher masks.
+- The SDK XML warning about version 3 vs 4 usually indicates Android Studio / command-line tools version mismatch and does not block successful builds.

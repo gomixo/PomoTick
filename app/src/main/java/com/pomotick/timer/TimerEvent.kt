@@ -39,6 +39,15 @@ sealed class TimerEvent {
     /** 放弃（用户主动放弃当前计时） */
     data class Abandon(val now: Long) : TimerEvent()
 
+    /** Stop the active timer/reminder and return to the selected phase's full duration. */
+    data class Reset(val now: Long, val phase: TimerPhase? = null) : TimerEvent()
+
+    /** Change the idle start screen phase without starting the timer. */
+    data class SwitchPhase(val phase: TimerPhase) : TimerEvent()
+
+    /** Stop the ringing reminder, record completion, and prepare the next idle phase. */
+    data class StopRingingAndPrepareNext(val now: Long) : TimerEvent()
+
     /**
      * RINGING 响应。
      *

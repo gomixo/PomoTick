@@ -29,17 +29,17 @@ class ReminderManager(
      * @param phase 阶段（决定波形）
      */
     fun start(scope: CoroutineScope, phase: TimerPhase) {
-        job?.cancel()
+        stop()
         job = scope.launch {
             val settings = settingsProvider()
-            if (!settings.enabled) {
-                Log.d(TAG, "Persistent reminder disabled in settings; skip")
-                return@launch
-            }
             val strength = settings.strength
             // 首次立即触发
             vib.vibrateFor(phase, strength)
             sound.playOnce(this)
+            if (!settings.enabled) {
+                Log.d(TAG, "Persistent reminder disabled in settings; first reminder only")
+                return@launch
+            }
             // 之后最多 repeat-1 次（每次间隔 REPEAT_INTERVAL_MS）
             repeat(MAX_REPEATS - 1) { i ->
                 if (!isActive) return@launch

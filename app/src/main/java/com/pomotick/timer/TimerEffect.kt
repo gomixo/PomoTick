@@ -17,6 +17,9 @@ sealed class TimerEffect {
     /** 清空 runtime state */
     object ClearRuntime : TimerEffect()
 
+    /** Persist the phase shown on the idle start screen. */
+    data class SaveSelectedPhase(val phase: TimerPhase) : TimerEffect()
+
     /**
      * 写入一条历史 [TimerSession]。
      */

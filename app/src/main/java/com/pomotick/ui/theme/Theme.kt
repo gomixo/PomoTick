@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
  */
 private val PomoTickColorScheme = darkColorScheme(
     primary = Color(0xFFFF5252),
-    onPrimary = Color.Black,
+    onPrimary = Color.White,
     primaryContainer = Color(0xFFB71C1C),
     onPrimaryContainer = Color.White,
     secondary = Color(0xFFFFAB91),

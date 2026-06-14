@@ -34,6 +34,9 @@ object TimerEngine {
         is TimerEvent.Extend -> handleExtend(current, event)
         is TimerEvent.FinishEarly -> handleFinishEarly(current, event.now)
         is TimerEvent.Abandon -> handleAbandon(current, event.now)
+        is TimerEvent.Reset -> handleReset(current, event.phase)
+        is TimerEvent.SwitchPhase -> handleSwitchPhase(event.phase)
+        is TimerEvent.StopRingingAndPrepareNext -> handleStopRingingAndPrepareNext(current, event.now)
         is TimerEvent.Respond -> handleRespond(current, event)
     }
 
@@ -231,10 +234,55 @@ object TimerEngine {
             listOf(
                 TimerEffect.RecordSession(session),
                 TimerEffect.ClearRuntime,
-                TimerEffect.StopForegroundService,
-                TimerEffect.StopReminder
+                TimerEffect.StopReminder,
+                TimerEffect.StopForegroundService
             )
         )
+    }
+
+    private fun handleReset(current: TimerRuntimeState?, phase: TimerPhase?): TimerEngineResult {
+        val selected = current?.phase ?: phase ?: TimerPhase.FOCUS
+        return TimerEngineResult.idle(
+            listOf(
+                TimerEffect.SaveSelectedPhase(selected),
+                TimerEffect.StopReminder,
+                TimerEffect.ClearRuntime,
+                TimerEffect.StopForegroundService
+            )
+        )
+    }
+
+    private fun handleSwitchPhase(phase: TimerPhase): TimerEngineResult =
+        TimerEngineResult.idle(
+            listOf(
+                TimerEffect.SaveSelectedPhase(phase),
+                TimerEffect.StopReminder,
+                TimerEffect.ClearRuntime,
+                TimerEffect.StopForegroundService
+            )
+        )
+
+    private fun handleStopRingingAndPrepareNext(
+        current: TimerRuntimeState?,
+        now: Long
+    ): TimerEngineResult {
+        val state = current ?: return TimerEngineResult.idle()
+        if (state.runState != TimerRunState.RINGING) {
+            return TimerEngineResult.of(state, emptyList())
+        }
+        val next = when (state.phase) {
+            TimerPhase.FOCUS -> TimerPhase.SHORT_BREAK
+            TimerPhase.SHORT_BREAK, TimerPhase.LONG_BREAK -> TimerPhase.FOCUS
+        }
+        val effects = mutableListOf<TimerEffect>()
+        if (!state.sessionCompletionRecorded) {
+            effects += TimerEffect.RecordSession(buildCompletionSession(state, now))
+        }
+        effects += TimerEffect.SaveSelectedPhase(next)
+        effects += TimerEffect.StopReminder
+        effects += TimerEffect.ClearRuntime
+        effects += TimerEffect.StopForegroundService
+        return TimerEngineResult.idle(effects)
     }
 
     /**
@@ -260,9 +308,9 @@ object TimerEngine {
                 if (!state.sessionCompletionRecorded) {
                     effects += TimerEffect.RecordSession(buildCompletionSession(state, event.now))
                 }
+                effects += TimerEffect.StopReminder
                 effects += TimerEffect.ClearRuntime
                 effects += TimerEffect.StopForegroundService
-                effects += TimerEffect.StopReminder
                 TimerEngineResult.idle(effects)
             }
             ResponseAction.StartBreak -> {
