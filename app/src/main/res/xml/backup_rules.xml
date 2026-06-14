@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    备份规则：MVP 阶段全部排除（避免 Room schema 变化导致恢复失败）。
+-->
+<full-backup-content>
+    <exclude domain="database" path="pomotick.db" />
+    <exclude domain="sharedpref" path="pomotick_prefs.xml" />
+</full-backup-content>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 震动权限（番茄完成时强震） -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 唤醒锁（息屏下到点感知辅助） -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- 前台服务权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- targetSdk 34 要求：使用 specialUse 类型时必须显式声明 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- 通知权限（Android 13+） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 全屏 Intent 权限（Android 14+ 强制要求用于 setFullScreenIntent） -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Wear OS 特性声明（必须 required=false 以兼容 ColorOS Watch） -->
+    <uses-feature
+        android:name="android.hardware.type.watch"
+        android:required="false" />
+
+    <application
+        android:name=".PomoTickApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PomoTick"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|locale|layoutDirection|fontScale"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.PomoTick">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            前台服务：番茄计时运行 + 震动提醒
+            类型选择 specialUse（targetSdk 34 强制要求）：
+            - 不与蓝牙/USB/NFC/网络设备交互（排除 connectedDevice）
+            - 不是数据传输/同步（排除 dataSync）
+            - 不是媒体/麦克风/定位等
+            - 25min 计时远超 shortService 的 3 分钟上限
+            - 不是系统应用
+        -->
+        <service
+            android:name=".service.TimerForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Pomodoro timer background runtime and vibration reminders" />
+        </service>
+
+    </application>
+
+</manifest>

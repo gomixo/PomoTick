@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ 数据提取规则（云备份 + 设备迁移）
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="pomotick.db" />
+        <exclude domain="sharedpref" path="pomotick_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="pomotick.db" />
+        <exclude domain="sharedpref" path="pomotick_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

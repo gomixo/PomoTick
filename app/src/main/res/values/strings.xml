@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">PomoTick</string>
+
+    <!-- 阶段 -->
+    <string name="phase_focus">专注</string>
+    <string name="phase_short_break">短休息</string>
+    <string name="phase_long_break">长休息</string>
+
+    <!-- 操作 -->
+    <string name="action_start">开始</string>
+    <string name="action_pause">暂停</string>
+    <string name="action_resume">继续</string>
+    <string name="action_more">更多</string>
+    <string name="action_respond">已到点</string>
+    <string name="action_settings">设置</string>
+    <string name="action_stats">统计</string>
+    <string name="action_extend_5">延长 5 分钟</string>
+    <string name="action_finish_early">提前结束</string>
+    <string name="action_abandon">放弃</string>
+    <string name="action_back">返回</string>
+    <string name="action_know_it">知道了</string>
+    <string name="action_start_break">开始休息</string>
+    <string name="action_continue_focus">继续专注</string>
+
+    <!-- 屏标题 -->
+    <string name="quick_actions_title">快捷操作</string>
+    <string name="reminder_focus_done">专注完成！</string>
+    <string name="reminder_break_done">休息结束！</string>
+    <string name="reminder_done_default">计时结束</string>
+
+    <!-- 放弃确认 -->
+    <string name="abandon_confirm_title">放弃当前计时？</string>
+    <string name="abandon_confirm_body">这将不记录完成的专注时长。</string>
+    <string name="abandon_confirm_yes">放弃</string>
+    <string name="abandon_confirm_no">取消</string>
+
+    <!-- 设置屏 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_focus_minutes">专注时长</string>
+    <string name="settings_short_break">短休息</string>
+    <string name="settings_long_break">长休息</string>
+    <string name="settings_vibration_strength">震动强度</string>
+    <string name="settings_persistent_reminder">持续提醒</string>
+    <string name="vibration_off">关</string>
+    <string name="vibration_low">弱</string>
+    <string name="vibration_high">强</string>
+
+    <!-- 统计屏 -->
+    <string name="stats_title">今日统计</string>
+    <string name="stats_today_count">今日完成</string>
+    <string name="stats_today_focus">今日专注</string>
+    <string name="stats_latest">最近完成</string>
+    <string name="stats_none">—</string>
+
+    <!-- 通知 Channel -->
+    <string name="notif_channel_timer">番茄计时运行中</string>
+    <string name="notif_channel_timer_desc">展示当前计时进度。</string>
+    <string name="notif_channel_reminder">番茄到点提醒</string>
+    <string name="notif_channel_reminder_desc">计时到点时高优先级提醒。</string>
+
+    <!-- 通知内容 -->
+    <string name="notif_running_focus">专注中</string>
+    <string name="notif_running_short_break">短休息中</string>
+    <string name="notif_running_long_break">长休息中</string>
+    <string name="notif_ring_focus_done">专注完成！</string>
+    <string name="notif_ring_break_done">休息结束！</string>
+    <string name="notif_tap_to_respond">点击查看</string>
+</resources>

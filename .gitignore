@@ -1,0 +1,51 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Local Android/SDK config
+local.properties
+
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+
+# Android build outputs
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+
+# Generated reports
+test-results/
+reports/
+lint-results*.html
+lint-results*.xml
+
+# Logs and local test artifacts
+*.log
+*.logcat
+screenshot*.png
+
+# Local AI/tool scratch space
+.trae/
+.uploads/
+
+# Signing keys and secrets
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.env
+*.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
