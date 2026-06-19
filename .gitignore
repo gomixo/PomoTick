@@ -30,6 +30,7 @@ lint-results*.xml
 # Logs and local test artifacts
 *.log
 *.logcat
+*_log.txt
 screenshot*.png
 /app*.png
 /logo*.png
@@ -42,8 +43,16 @@ screenshot*.png
 /setup-logo.ps1
 
 # Local AI/tool scratch space
+.artifacts/
 .trae/
 .uploads/
+
+# Local planning/review notes
+/OPPO 开放平台-OPPO开发者服务中心 1.md
+/PomoTick_v0.2_*.md
+/Tomato项目参考笔记.md
+/pomotick-oppo-*-plan.md
+/icon_gemini.svg
 
 # Project documents (generated)
 WearOS番茄计时APP开发方案.md
