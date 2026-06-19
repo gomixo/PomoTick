@@ -51,7 +51,7 @@ class VibrationHelper(private val context: Context) {
             }
 
             val amplitudes = adjustAmplitude(baseAmps, strength)
-            val effect = VibrationEffect.createWaveform(timings, amplitudes, -1)
+            val effect = VibrationEffect.createWaveform(timings, amplitudes, REPEAT_FROM_START)
             vibrator.vibrate(effect)
         } catch (e: Exception) {
             Log.e(TAG, "vibrate failed for phase=$phase strength=$strength", e)
@@ -83,5 +83,6 @@ class VibrationHelper(private val context: Context) {
 
     companion object {
         private const val TAG = "PomoTick/Vib"
+        private const val REPEAT_FROM_START = 0
     }
 }

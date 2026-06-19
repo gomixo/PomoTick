@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build **PomoTick**, a lightweight tomato timer for **OPPO Watch 4 Pro** first.
+Build **PomoTick**, a lightweight tomato timer for watches, with **OPPO Watch 4 Pro** as the primary device.
 
 Primary device:
 
@@ -11,35 +11,41 @@ Primary device:
 - Android 11 / API 30
 - Square 1.91-inch screen
 
-Optimize for: reliable timing, strong reminders, simple watch-first operation.
+Optimize for: reliable timing, strong but bounded reminders, and simple watch-first operation.
 
-## Product Rules
+## Product Principles
 
 - Do not build a phone-style productivity app.
-- MVP screens only:
-  - Timer
-  - Quick actions
-  - Reminder response
-  - Settings
-  - Today stats
-- Defer weekly charts, Vico, mobile companion app, and round-screen polish.
-- Core actions must be easy to tap on a watch: start, pause, resume, extend 5 min, finish early, abandon.
+- Keep the product lightweight, focused, and usable on a small watch screen.
+- Prioritize the timer, reminder response, settings, stats, and lightweight action surfaces.
+- Core actions must be easy to discover and easy to trigger on a watch.
+- Avoid dense information layouts, deep navigation, and phone-first workflows.
+- Specific feature scope belongs in the current version requirements document, not in this guide.
+
+## Version Requirements
+
+- Each release or feature revision should have its own Markdown requirements document.
+- Read the current version requirements document before implementing version-specific behavior.
+- `AGENTS.md` defines long-term product, technical, and safety boundaries.
+- Version requirements define the current release's features, interactions, settings, stats, reminder parameters, and acceptance criteria.
+- If a version requirement conflicts with the long-term constraints in this guide, keep the long-term constraint unless the exception is explicitly documented.
+- Do not permanently encode one release's exact feature set into `AGENTS.md`.
 
 ## Technical Rules
 
 - Use Kotlin.
-- Use a single app module for MVP.
+- Use a single app module unless a version requirement explicitly justifies otherwise.
 - `minSdk = 30`.
 - Do not depend on Google Play Services for core behavior.
 - Set `android.hardware.type.watch` as `required=false`.
 - Use Room for completed timer sessions.
 - Use DataStore or a single runtime-state table for current timer state.
-- Do not use Hilt, Dagger, or dependency-injection frameworks in MVP.
-- Do not use complex Navigation frameworks in MVP. Prefer simple local screen state.
-- Do not add charts, extra modules, or architecture layers unless explicitly requested.
+- Do not use Hilt, Dagger, or dependency-injection frameworks.
+- Do not use complex Navigation frameworks. Prefer simple local screen state.
+- Do not add complex charts, extra modules, or architecture layers unless explicitly requested by a version requirements document.
 - Use SDK 30+ compatible modern APIs. Do not generate deprecated legacy code.
 - For vibration, use `VibrationEffect.createWaveform()` on API 30+.
-- Prefer standard Compose layout primitives (`Column`, `Row`, `Box`, `LazyColumn`) for the OPPO Watch 4 Pro square screen.
+- Prefer standard Compose layout primitives such as `Column`, `Row`, `Box`, and `LazyColumn`.
 - Avoid round-watch-first Wear OS components unless they are clearly needed.
 
 ## Timer Rules
@@ -52,7 +58,10 @@ Optimize for: reliable timing, strong reminders, simple watch-first operation.
   - `accumulatedPausedMillis`
 - UI may refresh every second while visible.
 - Background service may check periodically, but real remaining time comes from timestamps.
-- Never persist only “remaining seconds” as the recovery source.
+- Never persist only "remaining seconds" as the recovery source.
+- Pause stops focus time from accumulating.
+- Resume shifts `targetEndAtEpochMillis` by paused duration.
+- Timer completion, early finish, abandon, reset, extension, and phase switching behavior should be defined by the active version requirements document.
 
 ## Startup Recovery
 
@@ -74,24 +83,43 @@ Use separate concepts:
 
 Important behavior:
 
-- Pause stops focus time from accumulating.
-- Resume shifts `targetEndAtEpochMillis` by paused duration.
-- Extend adds 5 minutes to `targetEndAtEpochMillis`.
-- Finish early records actual focus time.
-- Abandon records interrupted state.
+- Phase describes what kind of timer is active.
+- Run state describes what the timer is currently doing.
+- Reminder response must not be modeled as a phase.
+- Completed sessions should record enough information to distinguish completed, early-finished, and interrupted sessions.
+- Specific phase sequence rules belong in the active version requirements document.
 
-## Background And Reminder Rules
+## Reminder Principles
 
 - Use `ForegroundService` for active timers.
 - Do not use WorkManager for exact timer completion.
 - On OPPO Watch 4 Pro, verify background behavior on real hardware.
-- Guide user to set battery management to “unrestricted” if needed.
-- Reminders must be strong but bounded:
-  - focus done: strong vibration
-  - break done: medium vibration
-  - repeat every 30 seconds
-  - max 10 repeats by default
-  - stop immediately after user response
+- Guide user to set battery management to "unrestricted" if needed.
+- On timer completion, enter `RINGING`, show reminder response, and trigger the configured reminder behavior.
+- Reminders must be strong but bounded.
+- Stop sound and vibration immediately after user response.
+- Reminder auto-stop duration, repeat count, repeat interval, sound behavior, and vibration strength are version-specific requirements.
+- If a version does not define reminder repeat behavior, use a conservative bounded default: one reminder, automatic stop, no infinite loop.
+
+## UI Principles
+
+- Design for watch-first operation.
+- OPPO Watch 4 Pro square screen is the primary layout target.
+- Layouts should still avoid clipping and unsafe edge placement on round screens.
+- Use large, easy-to-tap primary interaction areas.
+- Avoid crowding the main timer screen with many small persistent buttons.
+- Gestures, taps, long presses, and compact action surfaces may be used when defined by the version requirements document.
+- Keep screens visually simple and focused on the current task.
+- Text must not overlap, clip, or sit too close to the screen edge.
+- Do not over-design with decorative layouts that reduce readability or tap reliability.
+
+## Data And Stats Principles
+
+- Use Room as the durable source for completed timer sessions.
+- Store enough data to recover useful stats without relying on UI-only calculations.
+- Stats should be lightweight, watch-readable, and aligned with the current version requirements.
+- Do not add complex chart libraries unless a version requirements document explicitly asks for them.
+- Prefer simple summaries, compact lists, and small visual indicators that work on a watch screen.
 
 ## Reference Projects
 
@@ -103,11 +131,14 @@ Important behavior:
 
 Always prioritize these checks:
 
-- Timer accuracy after 25 minutes
-- Pause/resume correctness
-- Extend 5 minutes correctness
-- App restart recovery
-- Screen-off completion reminder
-- Background completion reminder
-- Vibration stop after response
-- Square-screen layout on OPPO Watch 4 Pro
+- Timer accuracy after a full focus duration.
+- Pause/resume correctness.
+- App restart recovery.
+- Screen-off completion reminder.
+- Background completion reminder.
+- Reminder stop after user response.
+- Runtime state recovery for `RUNNING`, `PAUSED`, and `RINGING`.
+- Completed session recording correctness.
+- Square-screen layout on OPPO Watch 4 Pro.
+- Round-screen clipping check when a version requires round-screen compatibility.
+- Version-specific acceptance criteria from the active requirements document.

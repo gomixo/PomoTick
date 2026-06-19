@@ -1,13 +1,20 @@
 package com.pomotick.timer
 
 /**
- * 活跃 timer 的运行时状态（**唯一真实计时来源**）。
+ * 运行时状态——由 [TimerEngine] 维护，由 [com.pomotick.data.RuntimeStateStore] 持久化。
  *
- * 设计要点：
- * - **不依赖每秒后台循环**——任何时刻的剩余时间 = `targetEndAtEpochMillis - now`（考虑 PAUSED）
- * - `pausedAtEpochMillis == null` 表示"未暂停"，避免 `0L` 与真实暂停时间混淆
- * - 暂停后恢复只顺延 [targetEndAtEpochMillis]，保证"实际专注时长 = 实际 RUNNING 时长"
- * - [sessionCompletionRecorded] 用于避免 [TimerEngine] 在多个事件路径中重复写同一 session
+ * ## v0.2 关键变化
+ *
+ * - **不存"剩余秒数"**——只存时间戳，恢复时一律 `targetEndAtEpochMillis - now`
+ *   重启 / 杀掉 App 后不漂移、不丢秒数
+ * - **5 个配置快照**（`focusMinutesAtStart` / `shortBreakMinutesAtStart` /
+ *   `longBreakMinutesAtStart` / `cyclesBeforeLongBreakAtStart` / `cyclePositionAtStart`）
+ *   —— Engine 在不依赖 SettingsStore 的前提下能计算"下一阶段 + plannedMs"
+ * - **3 个 §4 字段**（`ringingStartedAtEpochMillis` / `awaitingRepeatSinceEpochMillis` /
+ *   `repeatReminderFired`）—— RINGING 状态下的重复提醒调度
+ *
+ * App 重启后从 [com.pomotick.data.RuntimeStateStore] 加载，整个字段集都能
+ * 用于"以时间戳为恢复依据"——Engine 的所有决策都是纯函数。
  */
 data class TimerRuntimeState(
     val sessionId: Long,
@@ -18,15 +25,30 @@ data class TimerRuntimeState(
     val targetEndAtEpochMillis: Long,
     val pausedAtEpochMillis: Long?,
     val accumulatedPausedMillis: Long,
-    val extensionCount: Int = 0,
+    val extensionCount: Int,
+    val sessionCompletionRecorded: Boolean,
+    // ===== §4 重复提醒调度字段 =====
     /**
-     * 当前 session 是否已写入历史表。
-     *
-     * 用途：
-     * - [TimerEvent.FinishEarly] 立即写入并置 true → 后续 Respond.KnowIt / StartBreak 不再重复写
-     * - 自然到点（RINGING）保持 false → Respond.KnowIt / StartBreak 才会写一次
+     * 当前 RINGING 状态进入时间（epoch millis）。
+     * 由 [TimerEngine.enterRinging] 在 RUNNING→RINGING 时设置。
      */
-    val sessionCompletionRecorded: Boolean = false
+    val ringingStartedAtEpochMillis: Long? = null,
+    /**
+     * 当前 RINGING 状态进入"等待 3 分钟重复"时刻。
+     * OnTick 在 `now - ringingStartedAtEpochMillis >= 30s` 时设置。
+     */
+    val awaitingRepeatSinceEpochMillis: Long? = null,
+    /**
+     * 重复提醒是否已触发（true 后不再触发）。
+     * OnTick 在 `now - awaitingRepeatSinceEpochMillis >= 3min` 时设为 true。
+     */
+    val repeatReminderFired: Boolean = false,
+    // ===== §9 配置快照字段 =====
+    val cyclePositionAtStart: Int = 0,
+    val longBreakMinutesAtStart: Int = 15,
+    val shortBreakMinutesAtStart: Int = 5,
+    val focusMinutesAtStart: Int = 25,
+    val cyclesBeforeLongBreakAtStart: Int = 3
 ) {
     init {
         require(plannedDurationMillis > 0L) { "plannedDurationMillis must be > 0" }
@@ -35,46 +57,12 @@ data class TimerRuntimeState(
         }
         require(accumulatedPausedMillis >= 0L) { "accumulatedPausedMillis must be >= 0" }
         require(extensionCount >= 0) { "extensionCount must be >= 0" }
+        require(cyclePositionAtStart >= 0) { "cyclePositionAtStart must be >= 0" }
+        require(longBreakMinutesAtStart in 1..120) { "longBreakMinutesAtStart must be 1..120" }
+        require(shortBreakMinutesAtStart in 1..60) { "shortBreakMinutesAtStart must be 1..60" }
+        require(focusMinutesAtStart in 1..180) { "focusMinutesAtStart must be 1..180" }
+        require(cyclesBeforeLongBreakAtStart in 2..6) {
+            "cyclesBeforeLongBreakAtStart must be 2..6"
+        }
     }
-
-    val isPaused: Boolean get() = runState == TimerRunState.PAUSED && pausedAtEpochMillis != null
-
-    val isRunning: Boolean get() = runState == TimerRunState.RUNNING
-}
-
-/**
- * 计算剩余毫秒（pure）。
- *
- * - RUNNING / RINGING / FINISHED：`targetEnd - now`
- * - PAUSED：`targetEnd - pausedAt`（时间冻结）
- * - IDLE：调用方不应传入此状态
- */
-fun remainingMillis(now: Long, state: TimerRuntimeState): Long {
-    val anchor = if (state.runState == TimerRunState.PAUSED) {
-        state.pausedAtEpochMillis ?: now
-    } else {
-        now
-    }
-    return (state.targetEndAtEpochMillis - anchor).coerceAtLeast(0L)
-}
-
-/**
- * 计算"已实际专注毫秒"（不含 PAUSED 时长、**不超过 plannedDurationMillis + 延长**）。
- *
- * - PAUSED：冻结在 `pausedAtEpochMillis`（不随 `now` 增长）
- * - RUNNING：`min(now, targetEndAtEpochMillis) - startedAt - accumulatedPaused`
- *            （封顶于 targetEnd，延长时 targetEnd 已上移 → 实际时长包含延长部分）
- * - RINGING / FINISHED：同样封顶在 targetEnd（用户晚响应不会把等待时间算进专注）
- */
-fun actualFocusMillis(now: Long, state: TimerRuntimeState): Long {
-    val effectiveNow = when (state.runState) {
-        TimerRunState.PAUSED -> state.pausedAtEpochMillis ?: now
-        TimerRunState.RUNNING,
-        TimerRunState.RINGING,
-        TimerRunState.FINISHED -> minOf(now, state.targetEndAtEpochMillis)
-        TimerRunState.IDLE -> state.startedAtEpochMillis  // 不应到达
-    }
-    val rawElapsed = effectiveNow - state.startedAtEpochMillis
-    // PAUSED 时不累积"now - pausedAt"那段（已冻结在 pausedAtEpochMillis）
-    return (rawElapsed - state.accumulatedPausedMillis).coerceAtLeast(0L)
 }

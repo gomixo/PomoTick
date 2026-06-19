@@ -9,4 +9,56 @@ local.properties
 # IDE/editor
 .idea/
 .vscode/
-*.im
+*.iml
+
+# Android build outputs
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+
+# Generated reports
+test-results/
+reports/
+lint-results*.html
+lint-results*.xml
+
+# Logs and local test artifacts
+*.log
+*.logcat
+screenshot*.png
+/app*.png
+/logo*.png
+/ic_logo*.png
+/ic_logo*.jpg
+/0.jpg
+/1.jpg
+/2.jpg
+/3.jpg
+/setup-logo.ps1
+
+# Local AI/tool scratch space
+.trae/
+.uploads/
+
+# Project documents (generated)
+WearOS番茄计时APP开发方案.md
+WearOS番茄计时APP环境配置指南.md
+
+# Signing keys and secrets
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.env
+*.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
