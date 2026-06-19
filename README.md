@@ -1,23 +1,18 @@
 # PomoTick
 
-PomoTick is a lightweight tomato timer built first for **OPPO Watch 4 Pro**.
+PomoTick is a lightweight Pomodoro timer designed for watches and small-screen Android devices.
 
-Target device:
+The app focuses on reliable timing, simple controls, lightweight settings, compact daily stats, and bounded reminders.
 
-- OPPO Watch 4 Pro
-- ColorOS Watch V7.1
-- Android 11 / API 30
-- Square 1.91-inch screen
+## Current Features
 
-The MVP focuses on reliable timing, clear watch-first controls, and strong bounded reminders.
-
-## Current MVP Flow
-
-- Launch shows the selected phase duration: focus `25:00` or short break `05:00`.
-- The main screen has three actions: start/pause, reset, and switch phase.
-- Timer truth comes from timestamps, not from a per-second loop.
-- When a phase ends, the app rings and vibrates, then shows a reminder screen.
-- Tapping `停止响铃` stops sound/vibration/notification, records the completed session, prepares the next phase, and returns to the idle timer screen.
+- Focus, short break, and long break timer phases.
+- Timestamp-based timer state, instead of using a per-second loop as the source of truth.
+- Start, pause, reset, phase switching, and reminder response actions.
+- Settings for timer durations, round behavior, ringtone, and vibration strength.
+- Today stats backed by completed timer sessions.
+- Bounded sound, vibration, and notification reminders when a phase ends.
+- Reminder actions stop sound and vibration immediately.
 
 ## Tech Stack
 
@@ -26,16 +21,17 @@ The MVP focuses on reliable timing, clear watch-first controls, and strong bound
 - Room for completed sessions
 - DataStore Preferences for runtime state and settings
 - ForegroundService for active timers
+- AlarmManager for scheduled timer completion
+- Android notifications for ongoing timer and reminder surfaces
 - `VibrationEffect.createWaveform()` for API 30+ vibration
 
-MVP intentionally avoids Hilt, Dagger, complex Navigation frameworks, Google Play Services dependency for core behavior, charts, and extra modules.
+The app intentionally avoids Hilt, Dagger, complex Navigation frameworks, Google Play Services dependency for core behavior, chart libraries, and extra modules.
 
 ## Build Requirements
 
 - JDK 17
 - Android SDK installed
 - Android Studio recommended
-- Real-device testing recommended on OPPO Watch 4 Pro
 
 The project uses Gradle Wrapper, so a separate Gradle install is not required.
 
@@ -49,7 +45,7 @@ From the project root:
 .\gradlew.bat :app:installDebug --no-daemon
 ```
 
-If the watch launcher keeps showing an old app icon, uninstall the debug package first:
+If the launcher keeps showing an old app icon, uninstall the debug package first:
 
 ```powershell
 adb uninstall com.pomotick.debug
@@ -68,6 +64,7 @@ app/build/outputs/apk/debug/app-debug.apk
 app/src/main/java/com/pomotick/
 ├── MainActivity.kt
 ├── PomoTickApp.kt
+├── alarm/      AlarmManager scheduling and receiver
 ├── data/       Room, DataStore, repository
 ├── timer/      pure timer state machine
 ├── service/    foreground timer service and notifications
@@ -75,20 +72,8 @@ app/src/main/java/com/pomotick/
 └── ui/         ViewModel, screens, theme
 ```
 
-## Real Watch Checks
-
-Prioritize these checks before treating a build as usable:
-
-- First launch of the day shows `25:00`.
-- Switching to break and reopening still shows `05:00` on the same day.
-- Start, pause, reset, and switch phase are easy to tap.
-- `25:00`, `05:00`, `04:09`, and `00:59` render fully on the watch.
-- Screen-off/background completion triggers reminder.
-- Sound and vibration stop immediately after tapping `停止响铃`.
-- After stopping a focus reminder, the idle screen prepares break; after stopping a break reminder, it prepares focus.
-
 ## Notes
 
-- `android.hardware.type.watch` is declared with `required="false"` for ColorOS Watch compatibility.
-- The launcher icon is generated as an adaptive icon with a safe-zone tomato foreground and light tomato-red background for ColorOS Watch launcher masks.
-- The SDK XML warning about version 3 vs 4 usually indicates Android Studio / command-line tools version mismatch and does not block successful builds.
+- `android.hardware.type.watch` is declared with `required="false"` for broader Android device compatibility.
+- Local logs, research notes, generated plans, screenshots, and tool artifacts should not be committed. They are covered by `.gitignore`.
+- Development constraints and product guardrails are documented in `AGENTS.md`.
