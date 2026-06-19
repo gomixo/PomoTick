@@ -12,10 +12,13 @@ import com.pomotick.timer.TimerPhase
  * Room 数据库（单实例，懒加载；无 Hilt）。
  *
  * MVP 只包含 [TimerSession] 一张表。
+ *
+ * v0.2 第五轮 P0 性能修复：version 从 1 升到 2 以加 `idx_status_phase_ended` 组合索引。
+ * MVP 阶段用 `fallbackToDestructiveMigration()` 丢弃旧数据——可接受。
  */
 @Database(
     entities = [TimerSession::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

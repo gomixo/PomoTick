@@ -85,7 +85,7 @@ class TimerForegroundService : Service() {
             settingsProvider = {
                 val snap = (application as PomoTickApp).settingsSnapshot()
                 com.pomotick.reminder.ReminderSettings(
-                    enabled = snap.persistentReminder,
+                    ringtoneEnabled = snap.ringtoneEnabled,
                     strength = snap.vibrationStrength
                 )
             }
@@ -97,6 +97,26 @@ class TimerForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // v0.2 P1 修复：从通知"停止"Action 进入时，走 StopRingingOnly——
+        // 仅停声震、保持 RINGING、启动 §4 等待窗口（30s 等待 → 3min 窗口 → 1 次 15s 重复）。
+        //
+        // 用户想"完成 → 推进阶段"需要打开 App 点"知道了"按钮。
+        if (intent?.action == NotificationFactory.ACTION_STOP_RINGING) {
+            Log.d(TAG, "Received ACTION_STOP_RINGING from notification; submitting StopRingingOnly")
+            serviceScope.launch {
+                repo.handleEvent(TimerEvent.StopRingingOnly(System.currentTimeMillis()))
+            }
+        }
+
+        // v0.2.1: 从 AlarmReceiver 唤起 → 强制刷新常驻通知节流状态。
+        // Receiver 已经在 goAsync 里调了 repo.handleEvent(OnTick)，Engine 应该已经
+        // 算出 RINGING 并发了 StartReminder effect。这里只保证"通知立即可见"。
+        if (intent?.action == NotificationFactory.ACTION_ALARM_WAKEUP) {
+            Log.d(TAG, "Service restarted by TimerAlarmReceiver (alarm wakeup)")
+            lastOngoingNotificationAtMs = 0L
+            lastOngoingNotificationKey = ""
+        }
+
         // 立即启动前台通知（API 30+ 5 秒内必须调用 startForeground()）
         val initialState = repo.currentRuntime.value
         if (initialState != null) {
@@ -145,10 +165,12 @@ class TimerForegroundService : Service() {
     fun handleEffect(effect: TimerEffect) {
         when (effect) {
             is TimerEffect.StartReminder -> {
-                Log.d(TAG, "[global] Start reminder: phase=${effect.phase}")
-                // 启动震动（主力提醒）
-                reminderManager.start(serviceScope, effect.phase)
-                // RINGING 通知 1002 只发一次（避免系统 Muting recently noisy）
+                // v0.2 P1 修复：Engine 在发送 effect 时已经算好 durationMs，
+                // 不再反查 runtime。避免"effect 到达时 runtime 还没更新"的竞态。
+                Log.d(TAG, "[global] Start reminder: phase=${effect.phase}, durationMs=${effect.durationMs}")
+                reminderManager.start(serviceScope, effect.phase, effect.durationMs)
+                // RINGING 通知 1002 只发一次（避免系统 Muting recently noisy）。
+                // 重复提醒期间通知仍保留（用户视觉上还停留在提醒），不重复发。
                 if (!ringingNotificationPosted) {
                     NotificationManagerCompat.from(this).notify(
                         NotificationFactory.NOTIFICATION_ID_REMINDER,
@@ -248,6 +270,20 @@ class TimerForegroundService : Service() {
          */
         fun start(context: Context) {
             val intent = Intent(context, TimerForegroundService::class.java)
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+        }
+
+        /**
+         * v0.2.1: 从 [com.pomotick.alarm.TimerAlarmReceiver] 唤起 Service。
+         *
+         * 与 [start] 的区别：携带 [NotificationFactory.ACTION_ALARM_WAKEUP] action，
+         * 让 `onStartCommand` 知道"这次是被 alarm 唤起的"——重置常驻通知节流状态，
+         * 立即发 1001 通知。
+         */
+        fun startAlarmWakeup(context: Context) {
+            val intent = Intent(context, TimerForegroundService::class.java).apply {
+                action = NotificationFactory.ACTION_ALARM_WAKEUP
+            }
             androidx.core.content.ContextCompat.startForegroundService(context, intent)
         }
 

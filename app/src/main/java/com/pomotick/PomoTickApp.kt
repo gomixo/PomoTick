@@ -2,6 +2,8 @@ package com.pomotick
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import com.pomotick.alarm.TimerAlarmScheduler
 import com.pomotick.data.AppDatabase
 import com.pomotick.data.RuntimeStateStore
 import com.pomotick.data.SettingsSnapshot
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * 应用入口 + 简易 Service Locator（**无 Hilt**）。
@@ -38,6 +41,12 @@ class PomoTickApp : Application() {
         RuntimeStateStore(applicationContext.pomotickDataStore)
     }
 
+    /**
+     * v0.2.1: AlarmManager 封装。供 [TimerRepository.handleEvent] 末尾注册 / 取消
+     * 精确闹钟用，同时供 SettingsScreen 检测 `SCHEDULE_EXACT_ALARM` 授权状态。
+     */
+    val alarmScheduler: TimerAlarmScheduler by lazy { TimerAlarmScheduler(this) }
+
     val repository: TimerRepository by lazy {
         TimerRepository(
             dao = dao,
@@ -45,7 +54,8 @@ class PomoTickApp : Application() {
             settings = settingsStore,
             externalScope = appScope,
             clock = { System.currentTimeMillis() },
-            effectHandler = { effect -> handleGlobalEffect(effect) }
+            effectHandler = { effect -> handleGlobalEffect(effect) },
+            alarmScheduler = alarmScheduler
         )
     }
 
@@ -69,6 +79,18 @@ class PomoTickApp : Application() {
     override fun onCreate() {
         super.onCreate()
         bootstrap()
+        // v0.2.1: 冷启动同步 bootstrap runtime 到 Repository 内存——消除
+        // AlarmReceiver 触发时的 cold start race。
+        //
+        // Application.onCreate 在任何 Receiver.onReceive 之前执行；DataStore 首次读
+        // 通常 < 50ms，手表实测 < 30ms，阻塞主线程可接受。
+        runBlocking {
+            val persisted = runtimeStore.current()
+            repository.bootstrap(persisted)
+            // 恢复后立即重建 alarm：避免系统重启 / 用户重启后 alarm 已丢失
+            reregisterAlarmFromRuntime()
+        }
+        Log.d(TAG, "onCreate done; runtime=${repository.currentRuntime.value?.runState}")
     }
 
     /**
@@ -81,6 +103,7 @@ class PomoTickApp : Application() {
                 shortBreakMinutes = settingsStore.shortBreakMinutes.first(),
                 longBreakMinutes = settingsStore.longBreakMinutes.first(),
                 vibrationStrength = settingsStore.vibrationStrength.first(),
+                ringtoneEnabled = settingsStore.ringtoneEnabled.first(),
                 persistentReminder = settingsStore.persistentReminder.first(),
                 hasShownBatteryHint = settingsStore.hasShownBatteryHint.first(),
                 selectedPhase = settingsStore.selectedPhase.first(),
@@ -98,6 +121,9 @@ class PomoTickApp : Application() {
         }.launchIn(appScope)
         settingsStore.vibrationStrength.onEach { v ->
             _settingsSnapshot.value = _settingsSnapshot.value.copy(vibrationStrength = v)
+        }.launchIn(appScope)
+        settingsStore.ringtoneEnabled.onEach { v ->
+            _settingsSnapshot.value = _settingsSnapshot.value.copy(ringtoneEnabled = v)
         }.launchIn(appScope)
         settingsStore.persistentReminder.onEach { v ->
             _settingsSnapshot.value = _settingsSnapshot.value.copy(persistentReminder = v)
@@ -125,6 +151,10 @@ class PomoTickApp : Application() {
      *   统一在此处路由避免丢失。
      * - [TimerEffect.SaveRuntime] / [TimerEffect.ClearRuntime] / [TimerEffect.RecordSession]
      *   → **不应**到达此处（由 [TimerRepository] 直接执行）
+     *
+     * v0.2 P1 修复：`StartForegroundService` 后立即跟 `StartReminder` 时，Service 启动是
+     * 异步的；这里对 `StartReminder` 做最多 1.5s 的等待，等到 [currentService] 注册后再路由，
+     * 否则提醒 effect 会被静默丢弃。
      */
     private suspend fun handleGlobalEffect(effect: TimerEffect) {
         when (effect) {
@@ -134,7 +164,10 @@ class PomoTickApp : Application() {
             is TimerEffect.StopForegroundService -> {
                 com.pomotick.service.TimerForegroundService.stop(this)
             }
-            is TimerEffect.StartReminder,
+            is TimerEffect.StartReminder -> {
+                awaitServiceForEffect(maxWaitMs = 1_500L)
+                currentService?.handleEffect(effect)
+            }
             is TimerEffect.StopReminder,
             is TimerEffect.UpdateNotification -> {
                 currentService?.handleEffect(effect)
@@ -142,7 +175,8 @@ class PomoTickApp : Application() {
             is TimerEffect.SaveRuntime,
             is TimerEffect.ClearRuntime,
             is TimerEffect.SaveSelectedPhase,
-            is TimerEffect.RecordSession -> {
+            is TimerEffect.RecordSession,
+            is TimerEffect.AdvanceCycle -> {
                 // 兜底：这些 effect 由 TimerRepository 直接执行，不应到达此处。
                 // 若到达，说明 Repository 漏处理了——打日志便于排查。
                 android.util.Log.w(
@@ -153,6 +187,26 @@ class PomoTickApp : Application() {
         }
     }
 
+    /**
+     * v0.2 P1 修复：等待 [currentService] 注册到位，最多 [maxWaitMs] 毫秒。
+     *
+     * 仅对必须送达 Service 的 effect（[TimerEffect.StartReminder]）使用，
+     * 避免冷启动时 StartForegroundService 异步还未生效就丢 effect。
+     */
+    private suspend fun awaitServiceForEffect(maxWaitMs: Long) {
+        if (currentService != null) return
+        val deadline = System.currentTimeMillis() + maxWaitMs
+        while (currentService == null && System.currentTimeMillis() < deadline) {
+            kotlinx.coroutines.delay(50L)
+        }
+        if (currentService == null) {
+            android.util.Log.w(
+                "PomoTickApp",
+                "Service did not register within ${maxWaitMs}ms; StartReminder will be dropped"
+            )
+        }
+    }
+
     fun settingsSnapshot(): SettingsSnapshot = _settingsSnapshot.value
 
     /**
@@ -160,9 +214,58 @@ class PomoTickApp : Application() {
      */
     fun isServiceRunning(): Boolean = currentService != null
 
+    /**
+     * v0.2.1: 根据当前 Repository 的 runtime 重新注册精确闹钟。
+     *
+     * 调用场景：
+     * - [onCreate] 同步 bootstrap 后立即调一次（系统重启 / 用户重启后 alarm 已丢失）
+     * - [com.pomotick.ui.TimerViewModel.onAppStart] RUNNING 分支再调一次（保险）
+     *
+     * 仅当 [shouldScheduleAlarm] 返回 true 时 schedule(targetEnd)。其他情况一律 cancel。
+     */
+    fun reregisterAlarmFromRuntime() {
+        val state = repository.currentRuntime.value
+        val now = System.currentTimeMillis()
+        if (shouldScheduleAlarm(state, now)) {
+            // shouldScheduleAlarm 已保证 state != null && runState == RUNNING
+            val target = state!!.targetEndAtEpochMillis
+            alarmScheduler.schedule(target)
+            Log.d(TAG, "reregister alarm: targetEnd=$target")
+        } else {
+            alarmScheduler.cancel()
+            if (state != null && state.runState == TimerRunState.RUNNING) {
+                Log.d(TAG, "reregister skipped: RUNNING but targetEnd expired " +
+                        "(targetEnd=${state.targetEndAtEpochMillis}, now=$now); " +
+                        "onAppStart / Receiver will advance to RINGING")
+            }
+        }
+    }
+
     companion object {
+        private const val TAG = "PomoTick/App"
+
         fun get(context: Context): PomoTickApp =
             context.applicationContext as PomoTickApp
+
+        /**
+         * v0.2.1 P1 修复：判断 [state] 是否应该注册精确闹钟。
+         *
+         * - `null` / 非 RUNNING → false
+         * - RUNNING 但 `targetEnd <= now` → **false**（避免给已过期 RUNNING 重复注册
+         *   一个"立即触发"的 alarm；让 onAppStart / Receiver 通过 OnTick 把状态推进
+         *   到 RINGING）
+         * - RUNNING 且 `targetEnd > now` → true
+         *
+         * 抽成纯函数方便单测。`internal` 可见性仅供同 module 的 test 访问。
+         */
+        @JvmStatic
+        internal fun shouldScheduleAlarm(
+            state: com.pomotick.timer.TimerRuntimeState?,
+            now: Long
+        ): Boolean =
+            state != null &&
+                    state.runState == TimerRunState.RUNNING &&
+                    state.targetEndAtEpochMillis > now
 
         /**
          * 当前活跃运行时状态为 RINGING（用于 MainActivity 决定是否打开提醒页）。

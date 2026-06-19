@@ -20,6 +20,14 @@
     <!-- 全屏 Intent 权限（Android 14+ 强制要求用于 setFullScreenIntent） -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
+    <!--
+        v0.2.1: 息屏到点可靠唤醒。
+        SCHEDULE_EXACT_ALARM (API 31+) 让 AlarmManager.setExactAndAllowWhileIdle() 在 doze 下准点触发。
+        注意：暂不声明 USE_EXACT_ALARM。USE_EXACT_ALARM 是 API 33+ "计时器/闹钟"类应用免用户授权
+        的精确闹钟——PomoTick 暂不申请，等 §12 真机确认后视政策再补。
+    -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- Wear OS 特性声明（必须 required=false 以兼容 ColorOS Watch） -->
     <uses-feature
         android:name="android.hardware.type.watch"
@@ -68,6 +76,32 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Pomodoro timer background runtime and vibration reminders" />
         </service>
+
+        <!--
+            v0.2.1+: 息屏到点唤醒 receiver。
+            **OPPO action-tag experiment（v0.2.1++）**：
+            原方案使用"显式 component PendingIntent"，logcat 显示 `tag:null`，
+            被 OPPO BmPowerManager 在 balance 模式下降级为非唤醒 alarm。
+
+            现改为"action + package + manifest intent-filter"——让 AlarmManager
+            tag 提取从显式 component 中拿到 action，期望 logcat 从：
+              `wakeup alarm(tag:null)`
+            变为：
+              `wakeup alarm(tag=*walarm*:com.pomotick.action.TIMER_FIRE)`
+
+            安全保证：
+            - `exported=false` 保持不变，外部 App 仍不能直接发送 broadcast
+            - `setPackage(packageName)` 限定到本包内解析
+            - action 字符串必须与 `TimerAlarmScheduler.ACTION_TIMER_FIRE` 完全一致
+            - Receiver.onReceive 仍校验 action
+        -->
+        <receiver
+            android:name=".alarm.TimerAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.pomotick.action.TIMER_FIRE" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

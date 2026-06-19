@@ -104,6 +104,9 @@ dependencies {
     // === 测试 ===
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    // v0.2.1: mockito-kotlin for AlarmManager / Context mock in TimerAlarmSchedulerTest
+    // (temp 注释：Gradle 8.2 / AAPT2 在 Windows 上 stableIds.txt 写入不稳定，先注释掉减少 build 复杂度)
+    // testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

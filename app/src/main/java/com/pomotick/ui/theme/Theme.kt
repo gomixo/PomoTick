@@ -13,21 +13,21 @@ import androidx.compose.ui.graphics.Color
 private val PomoTickColorScheme = darkColorScheme(
     primary = Color(0xFFFF5252),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFB71C1C),
-    onPrimaryContainer = Color.White,
-    secondary = Color(0xFFFFAB91),
-    onSecondary = Color.Black,
-    tertiary = Color(0xFFFFCC80),
-    onTertiary = Color.Black,
+    primaryContainer = Color(0xFF3D1313), // More subtle container
+    onPrimaryContainer = Color(0xFFFFDAD6),
+    secondary = Color(0xFF00BFA5), // Teal for Break
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF003730),
+    onSecondaryContainer = Color(0xFF70F7E1),
     background = Color.Black,
-    onBackground = Color.White,
-    surface = Color(0xFF1C1C1C),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF2C2C2C),
-    onSurfaceVariant = Color(0xFFCCCCCC),
+    onBackground = Color(0xFFEEEEEE),
+    surface = Color(0xFF121212), // Deep surface
+    onSurface = Color(0xFFE2E2E2),
+    surfaceVariant = Color(0xFF242424), // Medium surface
+    onSurfaceVariant = Color(0xFFC4C4C4),
     error = Color(0xFFFF5252),
     onError = Color.Black,
-    outline = Color(0xFF555555)
+    outline = Color(0xFF444444)
 )
 
 @Composable
