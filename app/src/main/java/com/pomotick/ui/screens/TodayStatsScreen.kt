@@ -6,21 +6,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +42,7 @@ import com.pomotick.ui.components.BigButton
  *
  * 布局（垂直滚动）：
  * ```
- * 1. 顶部：今日专注总时间 / 今日休息总时间
+ * 1. 顶部：今日专注总时间 / 今日休息总时间 + 今日完成次数
  * 2. 今日 4 时段专注分布（4 行 + 短条形视觉块）
  * 3. 分割线
  * 4. 最近 7 天标题 + 7 天总专注
@@ -56,14 +60,8 @@ fun TodayStatsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // v0.2 第四轮 P0 性能修复：统计页**只**订阅 statsState，**绝不**订阅 baseState。
-    // 主计时器每秒倒计时变化时不会触发统计页重组。
     val stats by viewModel.statsState.collectAsStateWithLifecycle()
 
-    // v0.2 第五轮 P0 性能修复：
-    // - ViewModel.init 已预热一次（[preloadStats]），首次进入 stats 已有数据可显示
-    // - 这里**延迟 300ms** 再 refresh，避开 HorizontalPager 切页动画期间争抢 CPU/IO
-    // - 300ms 后切页动画基本完成，第二次 refresh 在后台完成，二次重组也赶不上动画
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(300L)
         viewModel.refreshTodayStats()
@@ -77,15 +75,16 @@ fun TodayStatsScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // ===== 页面标题 =====
         Text(
             text = stringResource(R.string.stats_title),
-            fontSize = 18.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        // ===== 今日总览 =====
-        androidx.compose.material3.Surface(
+        // ===== 今日总览卡片（专注 + 休息 + 完成次数一行） =====
+        Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
@@ -93,15 +92,31 @@ fun TodayStatsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // 今日专注
                 SummaryTile(
                     label = stringResource(R.string.stats_today_focus),
                     value = TimeFormatter.formatDuration(stats.todayFocusMillis),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
+
+                // 竖线分隔
+                val dividerColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(32.dp)
+                        .padding(vertical = 4.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawRect(color = dividerColor)
+                    }
+                }
+
+                // 今日休息
                 SummaryTile(
                     label = stringResource(R.string.stats_today_break),
                     value = TimeFormatter.formatDuration(stats.todayBreakMillis),
@@ -111,8 +126,9 @@ fun TodayStatsScreen(
             }
         }
 
+        // 今日完成次数
         Text(
-            text = "${stringResource(R.string.stats_today_count)}：${stats.todayCount}",
+            text = "${stringResource(R.string.stats_today_count)}: ${stats.todayCount}",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onBackground
         )
@@ -158,7 +174,7 @@ fun TodayStatsScreen(
         val weeklyMax = (stats.weeklyFocus.maxOfOrNull { it.focusMillis } ?: 0L).coerceAtLeast(1L)
         val weeklyTotal = stats.weeklyFocus.sumOf { it.focusMillis }
         Text(
-            text = "${stringResource(R.string.stats_weekly_total)}：${
+            text = "${stringResource(R.string.stats_weekly_total)}: ${
                 TimeFormatter.formatDuration(weeklyTotal)
             }",
             fontSize = 13.sp,
@@ -205,13 +221,13 @@ private fun SummaryTile(
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
             fontWeight = FontWeight.Medium
         )
         Text(
             text = value,
-            fontSize = 20.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = color
         )
@@ -219,9 +235,7 @@ private fun SummaryTile(
 }
 
 /**
- * v0.2 §8: 单个时段（6h 桶）行——左侧标签，中间短条，右侧时长。
- *
- * 短条用 [Canvas] 绘制，最长 120dp 宽；按 `focusMillis / maxMillis` 比例填充。
+ * 单个时段行——左侧标签，中间短条，右侧时长。
  */
 @Composable
 private fun BucketRow(
@@ -238,13 +252,13 @@ private fun BucketRow(
             text = label,
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.fillMaxWidth(0.32f)
+            modifier = Modifier.fillMaxWidth(0.22f)
         )
         MiniBar(
             fraction = (focusMillis.toFloat() / maxMillis.toFloat()).coerceIn(0f, 1f),
             modifier = Modifier
                 .weight(1f)
-                .height(10.dp)
+                .height(14.dp)
         )
         Text(
             text = TimeFormatter.formatDuration(focusMillis),
@@ -256,7 +270,7 @@ private fun BucketRow(
 }
 
 /**
- * v0.2 §8: 周列表的单日行——左侧日期，中间短条，右侧时长。
+ * 周列表的单日行——左侧日期，中间短条，右侧时长。
  */
 @Composable
 private fun WeeklyRow(
@@ -278,7 +292,7 @@ private fun WeeklyRow(
             fraction = (day.focusMillis.toFloat() / maxMillis.toFloat()).coerceIn(0f, 1f),
             modifier = Modifier
                 .weight(1f)
-                .height(10.dp)
+                .height(14.dp)
         )
         Text(
             text = TimeFormatter.formatDuration(day.focusMillis),
@@ -290,16 +304,16 @@ private fun WeeklyRow(
 }
 
 /**
- * v0.2 §8: 短条形视觉块——无依赖，Material3 主题色填充。
+ * 短条形视觉块——pill 形状，主色填充。
  *
- * 比例 `fraction` 为 0..1；背景为主色 18% 透明度，填充为完整主色。
+ * 比例 `fraction` 为 0..1；背景为主色 15% 透明度，填充为完整主色。
  */
 @Composable
 private fun MiniBar(
     fraction: Float,
     modifier: Modifier = Modifier
 ) {
-    val bg = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    val bg = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
     val fg = MaterialTheme.colorScheme.primary
     Box(modifier = modifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -307,13 +321,13 @@ private fun MiniBar(
             drawRoundRect(
                 color = bg,
                 size = Size(size.width, size.height),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner)
+                cornerRadius = CornerRadius(corner, corner)
             )
             if (fraction > 0f) {
                 drawRoundRect(
                     color = fg,
                     size = Size(size.width * fraction, size.height),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner)
+                    cornerRadius = CornerRadius(corner, corner)
                 )
             }
         }

@@ -93,11 +93,9 @@ fun SettingsScreen(
     ) {
         Text(
             text = stringResource(R.string.settings_title),
-            fontSize = 18.sp
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
         )
-
-        // v0.2.1: 精确闹钟权限状态横幅——放在标题下方最显眼位置
-        ExactAlarmStatusRow(granted = exactAlarmGranted)
 
         // 1. 专注时长
         SettingRow(
@@ -165,21 +163,30 @@ fun SettingsScreen(
         )
 
         // 6. 响铃开关
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        androidx.compose.material3.Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.settings_ringtone_enabled),
-                fontSize = 14.sp
-            )
-            Switch(
-                checked = settings.ringtoneEnabled,
-                onCheckedChange = { enabled ->
-                    scope.launch { app.settingsStore.setRingtoneEnabled(enabled) }
-                }
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_ringtone_enabled),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+                Switch(
+                    checked = settings.ringtoneEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch { app.settingsStore.setRingtoneEnabled(enabled) }
+                    }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -206,7 +213,7 @@ private fun SettingRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(56.dp)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -214,7 +221,7 @@ private fun SettingRow(
                 text = label,
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
             )
             
             Row(
@@ -227,7 +234,7 @@ private fun SettingRow(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.width(36.dp),
+                    modifier = Modifier.width(40.dp),
                     textAlign = TextAlign.Center
                 )
                 AdjustButton(label = "+", onClick = onPlus)
@@ -243,8 +250,8 @@ private fun AdjustButton(
 ) {
     androidx.compose.material3.Surface(
         onClick = onClick,
-        modifier = Modifier.size(38.dp),
-        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.size(42.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -271,7 +278,7 @@ private fun VibrationToggleRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(56.dp)
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -279,7 +286,7 @@ private fun VibrationToggleRow(
                 text = stringResource(R.string.settings_vibration_strength),
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
             )
             Text(
                 text = when(current) {

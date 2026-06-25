@@ -1,0 +1,219 @@
+{
+  "project": {
+    "name": "PomoTick 手表 UI",
+    "path": "d:\\Workspace\\PomoTick\\pomotick-watch-ui",
+    "operation": "create",
+    "deviceType": "mobile",
+    "language": "zh-CN",
+    "dashboardMode": false,
+    "replicationMode": null,
+    "sourceUrl": null,
+    "visualSpecExcerpt": null,
+    "styleDefinitionBrief": "PomoTick 番茄钟手表应用 UI，深色 OLED 友好主题，Apple 设计系统约束，1.91 英寸方形屏幕模拟",
+    "designRead": "watch app / pomodoro timer user / restrained dark / information-dense / avoid cluttered layouts",
+    "designDials": {
+      "layoutVariance": 2,
+      "motionIntensity": 1,
+      "visualDensity": 4
+    },
+    "styleContinuityAnchors": {
+      "colorSystem": {
+        "primaryColorRole": "Apple System Red #FF3B30 for focus phase, Apple System Blue #007AFF for break phase",
+        "brandHuePolicy": "dual-hue semantic: red for focus, blue for break, on pure black OLED background",
+        "stateColors": "success green #34C759, error red #FF3B30"
+      },
+      "shapeSystem": "restrained radius: 12-16px for cards/buttons, pill-shaped for primary CTA, circular progress ring for timer",
+      "typographySystem": "DM Sans for interface, tabular/monospace for timer digits, tight tracking on display numbers",
+      "spacingSystem": "compact watch-first: 12-16px horizontal padding, 8-12px vertical gaps, 42-48dp touch targets",
+      "componentLanguage": "dark surface cards with subtle borders, large tappable areas, minimal decorative elements",
+      "surfaceAndDepth": "border-first depth: 1px borders define cards, no heavy shadows on static elements",
+      "imageryAndIconography": "system icons only, no decorative imagery, functional icon-first design",
+      "interactionTone": "subtle feedback, no animation flourish, immediate response to tap"
+    },
+    "specsConstraints": null,
+    "sharedProjectShellContract": {
+      "navigationShell": "no global nav — watch app uses screen-level navigation only",
+      "primaryColorSystem": "semantic dual-hue: #FF3B30 focus red, #007AFF break blue, on #000000 OLED black",
+      "typographySystem": "DM Sans for labels, tabular monospace for timer countdown digits",
+      "radiusScale": "8px small, 12px medium, 16px large, pill for buttons",
+      "surfaceDepthModel": "border-first, no shadow on static cards, subtle elevation on overlays only",
+      "ctaStyle": "large pill buttons, 56-64dp height, full-width, high contrast",
+      "alignmentRules": "center-aligned single-column, horizontal padding 16dp, vertical rhythm 8-12dp"
+    },
+    "generationTree": {
+      "root": {
+        "nodeId": "gen-project-shell",
+        "kind": "project-shell",
+        "pageIds": ["page-timer", "page-reminder", "page-settings"],
+        "output": "partials/project-shell.html",
+        "sharedRegions": ["dark-background", "font-import", "base-typography"],
+        "privateRegions": [],
+        "mutableSlots": ["pageTitle", "pageBody"],
+        "status": "planned",
+        "children": [
+          {
+            "nodeId": "gen-page-timer",
+            "kind": "page-leaf",
+            "pageIds": ["page-timer"],
+            "output": "pages/timer.html",
+            "sharedRegions": [],
+            "privateRegions": ["timer-dial", "progress-ring", "action-icon", "phase-label"],
+            "mutableSlots": [],
+            "status": "planned",
+            "children": []
+          },
+          {
+            "nodeId": "gen-page-reminder",
+            "kind": "page-leaf",
+            "pageIds": ["page-reminder"],
+            "output": "pages/reminder.html",
+            "sharedRegions": [],
+            "privateRegions": ["reminder-title", "primary-button", "secondary-button"],
+            "mutableSlots": [],
+            "status": "planned",
+            "children": []
+          },
+          {
+            "nodeId": "gen-page-settings",
+            "kind": "page-leaf",
+            "pageIds": ["page-settings"],
+            "output": "pages/settings.html",
+            "sharedRegions": [],
+            "privateRegions": ["settings-list", "permission-banner", "back-button"],
+            "mutableSlots": [],
+            "status": "planned",
+            "children": []
+          }
+        ]
+      }
+    }
+  },
+  "designSource": {
+    "operatingMode": "library-bound",
+    "libraryIdentity": {
+      "name": "苹果",
+      "id": "dl_builtin_apple",
+      "version": null,
+      "scope": "built-in-global",
+      "path": "c:\\Users\\xiaob\\.trae-cn\\design_libraries\\dl_builtin_apple",
+      "versionSource": "selected-context"
+    },
+    "libraryPath": "c:\\Users\\xiaob\\.trae-cn\\design_libraries\\dl_builtin_apple",
+    "cssFilePath": "c:\\Users\\xiaob\\.trae-cn\\design_libraries\\dl_builtin_apple\\colors_and_type.css",
+    "brandPrefix": "",
+    "themeMode": "dark",
+    "designDecisionSummary": "Apple-inspired dark watch UI: OLED black background, system red #FF3B30 for focus, system blue #007AFF for break, DM Sans typography, restrained radius, border-first depth",
+    "componentContractKind": null,
+    "forbiddenInventedComponents": [],
+    "allowedComponents": ["button", "card", "input"],
+    "styleConstraints": {
+      "radiusMax": 16,
+      "spacingBase": 4,
+      "fontSizeBody": 14,
+      "fontSizeMin": 11,
+      "controlHeightDefault": 44,
+      "controlHeightLarge": 56
+    },
+    "productContext": {
+      "kitType": "watch-app",
+      "productType": "pomodoro timer for OPPO Watch 4 Pro"
+    },
+    "actualTokenNameReference": [
+      { "semanticPurpose": "Primary brand/accent", "tokenName": "--brand-500 / --primary" },
+      { "semanticPurpose": "Background", "tokenName": "--background-900 / --background" },
+      { "semanticPurpose": "Foreground text", "tokenName": "--text-50 / --foreground" },
+      { "semanticPurpose": "Surface", "tokenName": "--background-800" },
+      { "semanticPurpose": "Surface variant", "tokenName": "--background-700" },
+      { "semanticPurpose": "Border", "tokenName": "--background-700 / --border" },
+      { "semanticPurpose": "Muted text", "tokenName": "--text-400 / --muted-foreground" },
+      { "semanticPurpose": "Success", "tokenName": "--state-success" },
+      { "semanticPurpose": "Error/destructive", "tokenName": "--state-error" }
+    ]
+  },
+  "pages": [
+    {
+      "nodeId": "page-timer",
+      "slug": "timer",
+      "title": "计时器",
+      "htmlSrc": "pages/timer.html",
+      "pageIndex": 1,
+      "stateGroupId": null,
+      "stateRole": null,
+      "baseStatePageId": null,
+      "sharedShellContract": [],
+      "mutableRegions": [],
+      "derivedFromHtmlSrc": null,
+      "derivationType": "original",
+      "sourcePageId": null,
+      "sourceHtmlSrc": null,
+      "pageType": "task-driven",
+      "businessScenario": "Main timer screen showing countdown ring, remaining time, phase label, and tap/long-press actions",
+      "visualNorthStar": "Large circular progress ring centered on 1.91in square OLED screen, bold tabular countdown digits, minimal chrome — Apple Watch Activity Rings inspired",
+      "compositionPattern": "single-focus centered layout with circular progress as hero element",
+      "continuityAnchors": ["dark OLED background", "DM Sans typography", "restrained radius"],
+      "libraryRestraintMode": false,
+      "uiKitPath": null,
+      "componentPlan": [],
+      "imagePlan": [],
+      "chartsRequired": false,
+      "miniProgramStyle": false
+    },
+    {
+      "nodeId": "page-reminder",
+      "slug": "reminder",
+      "title": "到点提醒",
+      "htmlSrc": "pages/reminder.html",
+      "pageIndex": 2,
+      "stateGroupId": null,
+      "stateRole": null,
+      "baseStatePageId": null,
+      "sharedShellContract": [],
+      "mutableRegions": [],
+      "derivedFromHtmlSrc": null,
+      "derivationType": "original",
+      "sourcePageId": null,
+      "sourceHtmlSrc": null,
+      "pageType": "task-driven",
+      "businessScenario": "Timer completion alert screen with phase-specific title, primary confirm button and secondary stop-alarm button",
+      "visualNorthStar": "Urgent but calm full-screen alert: bold completion title, two stacked pill buttons, subtle primary color glow background",
+      "compositionPattern": "centered vertical stack: title → spacer → primary CTA → secondary CTA",
+      "continuityAnchors": ["dark OLED background", "pill button style", "DM Sans typography"],
+      "libraryRestraintMode": false,
+      "uiKitPath": null,
+      "componentPlan": [],
+      "imagePlan": [],
+      "chartsRequired": false,
+      "miniProgramStyle": false
+    },
+    {
+      "nodeId": "page-settings",
+      "slug": "settings",
+      "title": "设置",
+      "htmlSrc": "pages/settings.html",
+      "pageIndex": 3,
+      "stateGroupId": null,
+      "stateRole": null,
+      "baseStatePageId": null,
+      "sharedShellContract": [],
+      "mutableRegions": [],
+      "derivedFromHtmlSrc": null,
+      "derivationType": "original",
+      "sourcePageId": null,
+      "sourceHtmlSrc": null,
+      "pageType": "information-dense",
+      "businessScenario": "Settings screen with 6 configurable items: focus duration, short break, long break, focus cycles, vibration strength, ringtone toggle, plus permission banner and back button",
+      "visualNorthStar": "Compact scrollable list of setting rows with +/- controls, consistent card styling, permission status banner at top",
+      "compositionPattern": "single-column scrollable list with titled header, status banner, setting rows, and back button",
+      "continuityAnchors": ["dark OLED background", "setting row card style", "pill back button"],
+      "libraryRestraintMode": false,
+      "uiKitPath": null,
+      "componentPlan": [],
+      "imagePlan": [],
+      "chartsRequired": false,
+      "miniProgramStyle": false
+    }
+  ],
+  "assets": [],
+  "wiringPlan": [],
+  "hiddenInteractionPlan": []
+}

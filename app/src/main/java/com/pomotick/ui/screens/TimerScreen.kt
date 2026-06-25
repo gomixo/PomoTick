@@ -95,6 +95,11 @@ fun TimerScreen(
     } else {
         MaterialTheme.colorScheme.secondary
     }
+    val phaseLabel = when (activePhase) {
+        TimerPhase.FOCUS -> "FOCUS"
+        TimerPhase.SHORT_BREAK -> "BREAK"
+        TimerPhase.LONG_BREAK -> "LONG BREAK"
+    }
 
     val planned = base.runtime?.plannedDurationMillis
         ?: when (activePhase) {
@@ -120,6 +125,9 @@ fun TimerScreen(
                 progress = progress,
                 showDot = isRunning,
                 progressColor = phaseColor,
+                phaseLabel = phaseLabel,
+                currentCycle = base.runtime?.cyclePositionAtStart ?: 0,
+                totalCycles = base.settings.focusCyclesBeforeLongBreak,
                 actionIconRes = when {
                     isRunning -> R.drawable.ic_action_pause
                     isPaused -> R.drawable.ic_action_play
@@ -147,6 +155,27 @@ fun TimerScreen(
                     .fillMaxWidth(0.94f)
                     .aspectRatio(1f)
             )
+
+            // Cycle progress dots
+            val dotInactiveColor = MaterialTheme.colorScheme.outline
+            Row(
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(base.settings.focusCyclesBeforeLongBreak) { index ->
+                    val filled = index < base.settings.cyclePosition
+                    val dotColor = if (filled) phaseColor else dotInactiveColor
+                    androidx.compose.foundation.Canvas(
+                        modifier = Modifier.size(6.dp)
+                    ) {
+                        drawCircle(
+                            color = dotColor,
+                            radius = 3.dp.toPx()
+                        )
+                    }
+                }
+            }
         }
 
         if (showLongPressMenu) {
@@ -172,13 +201,16 @@ private fun TimerDial(
     progress: Float,
     showDot: Boolean,
     progressColor: androidx.compose.ui.graphics.Color,
+    phaseLabel: String,
+    currentCycle: Int,
+    totalCycles: Int,
     actionIconRes: Int,
     actionIconDescription: String,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val trackColor = progressColor.copy(alpha = 0.12f)
+    val trackColor = progressColor.copy(alpha = 0.2f)
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier.combinedClickable(
@@ -190,14 +222,14 @@ private fun TimerDial(
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val stroke = 18.dp.toPx()
+            val stroke = 14.dp.toPx()
             val radius = (size.minDimension - stroke) / 2.2f
             val center = Offset(size.width / 2f, size.height / 2f)
             drawCircle(
                 color = trackColor,
                 radius = radius,
                 center = center,
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
+                style = Stroke(width = stroke, cap = StrokeCap.Butt)
             )
             if (progress > 0f) {
                 drawArc(
@@ -207,7 +239,7 @@ private fun TimerDial(
                     useCenter = false,
                     topLeft = Offset(center.x - radius, center.y - radius),
                     size = androidx.compose.ui.geometry.Size(radius * 2f, radius * 2f),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                    style = Stroke(width = stroke, cap = StrokeCap.Butt)
                 )
             }
             if (showDot) {
@@ -216,20 +248,29 @@ private fun TimerDial(
                     x = center.x + kotlin.math.cos(angle).toFloat() * radius,
                     y = center.y + kotlin.math.sin(angle).toFloat() * radius
                 )
-                drawCircle(color = progressColor, radius = stroke * 0.45f, center = dot)
+                drawCircle(color = progressColor, radius = stroke * 0.35f, center = dot)
             }
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Phase label
+            Text(
+                text = phaseLabel,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = progressColor.copy(alpha = 0.8f),
+                letterSpacing = 0.08f.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             TimerText(timeText = timeText, color = progressColor)
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Icon(
                 painter = painterResource(actionIconRes),
                 contentDescription = actionIconDescription,
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
-                modifier = Modifier.size(30.dp)
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                modifier = Modifier.size(24.dp)
             )
         }
     }
@@ -271,7 +312,7 @@ private fun ActionOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.85f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -283,7 +324,7 @@ private fun ActionOverlay(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -312,7 +353,7 @@ private fun ActionOverlay(
             
             androidx.compose.material3.IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
@@ -338,7 +379,7 @@ private fun BigMenuButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp),
+            .height(68.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(

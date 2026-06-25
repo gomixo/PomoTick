@@ -1,0 +1,47 @@
+{
+  "root": {
+    "nodeId": "gen-project-shell",
+    "kind": "project-shell",
+    "pageIds": ["page-timer", "page-reminder", "page-settings"],
+    "output": "partials/project-shell.html",
+    "sharedRegions": ["dark-background", "font-import", "base-typography"],
+    "privateRegions": [],
+    "mutableSlots": ["pageTitle", "pageBody"],
+    "status": "generated",
+    "children": [
+      {
+        "nodeId": "gen-page-timer",
+        "kind": "page-leaf",
+        "pageIds": ["page-timer"],
+        "output": "pages/timer.html",
+        "sharedRegions": [],
+        "privateRegions": ["timer-dial", "progress-ring", "action-icon", "phase-label"],
+        "mutableSlots": [],
+        "status": "generated",
+        "children": []
+      },
+      {
+        "nodeId": "gen-page-reminder",
+        "kind": "page-leaf",
+        "pageIds": ["page-reminder"],
+        "output": "pages/reminder.html",
+        "sharedRegions": [],
+        "privateRegions": ["reminder-title", "primary-button", "secondary-button"],
+        "mutableSlots": [],
+        "status": "generated",
+        "children": []
+      },
+      {
+        "nodeId": "gen-page-settings",
+        "kind": "page-leaf",
+        "pageIds": ["page-settings"],
+        "output": "pages/settings.html",
+        "sharedRegions": [],
+        "privateRegions": ["settings-list", "permission-banner", "back-button"],
+        "mutableSlots": [],
+        "status": "generated",
+        "children": []
+      }
+    ]
+  }
+}

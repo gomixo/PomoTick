@@ -176,11 +176,23 @@ class TimerViewModel(
         viewModelScope.launch {
             repo.currentRuntime.collect { runtime ->
                 val now = System.currentTimeMillis()
+                // 当 runtime 被清除时（阶段完成/重置），DataStore 的 selectedPhase
+                // 可能还没被 observeSettings 收到。直接从 DataStore 读取一次最新值来避免竞态。
+                val freshSelectedPhase = if (runtime == null) {
+                    try {
+                        (app as PomoTickApp).settingsStore.selectedPhase.first()
+                    } catch (_: Exception) {
+                        _baseState.value.selectedPhase
+                    }
+                } else {
+                    _baseState.value.selectedPhase
+                }
                 _baseState.update { current ->
                     current.copy(
                         runtime = runtime,
                         runState = runtime?.runState ?: TimerRunState.IDLE,
-                        phase = runtime?.phase ?: current.phase ?: current.selectedPhase
+                        phase = runtime?.phase ?: freshSelectedPhase,
+                        selectedPhase = freshSelectedPhase
                     )
                 }
                 // 同步更新 remainingMs（不会触发 baseState 订阅者重组）
@@ -559,14 +571,18 @@ class TimerViewModel(
         aggregates: List<com.pomotick.data.DailyFocusAggregate>
     ): List<DailyFocus> {
         val oneDay = 24L * 60L * 60L * 1000L
-        val labelFmt = java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault())
+        val dayOfWeekNames = listOf("周日", "周一", "周二", "周三", "周四", "周五", "周六")
+        val cal = java.util.Calendar.getInstance()
         // dayOffset 范围 [-6, 0]；UI 顺序：-6 (6 天前) ... 0 (今天)
         val byOffset = aggregates.associate { it.dayOffset to it.focusMillis }
         return (-6..0).map { offset ->
             val dayStart = todayStart + offset * oneDay
+            cal.timeInMillis = dayStart
+            val dow = cal.get(java.util.Calendar.DAY_OF_WEEK)
+            val label = if (offset == 0) "今天" else dayOfWeekNames[dow - 1]
             DailyFocus(
                 dayStartEpochMillis = dayStart,
-                label = labelFmt.format(java.util.Date(dayStart)),
+                label = label,
                 focusMillis = byOffset[offset.toLong()] ?: 0L
             )
         }

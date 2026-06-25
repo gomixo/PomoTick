@@ -26,8 +26,8 @@
     <string name="action_stop_alarm_only">停止声震</string>
 
     <string name="quick_actions_title">快捷操作</string>
-    <string name="reminder_focus_done">专注完成！</string>
-    <string name="reminder_break_done">休息结束！</string>
+    <string name="reminder_focus_done">Focus Done!</string>
+    <string name="reminder_break_done">Break Done!</string>
     <string name="reminder_done_default">计时结束</string>
     <string name="reminder_stop_title">要停止响铃吗？</string>
     <string name="reminder_completed_body">当前计时已完成。</string>
@@ -59,10 +59,10 @@
 
     <!-- v0.2 §8 今日 4 时段专注 -->
     <string name="stats_buckets_title">今日时段分布</string>
-    <string name="stats_bucket_dawn">凌晨 00-06</string>
-    <string name="stats_bucket_morning">上午 06-12</string>
-    <string name="stats_bucket_afternoon">下午 12-18</string>
-    <string name="stats_bucket_evening">晚间 18-24</string>
+    <string name="stats_bucket_dawn">凌晨</string>
+    <string name="stats_bucket_morning">上午</string>
+    <string name="stats_bucket_afternoon">下午</string>
+    <string name="stats_bucket_evening">晚间</string>
 
     <!-- v0.2 §8 最近 7 天 -->
     <string name="stats_weekly_title">最近 7 天</string>

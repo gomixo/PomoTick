@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * 复用大按钮——高度 56dp，宽度撑满，适合方形屏。
+ * 复用大按钮——高度 58dp，宽度撑满，Apple 风格圆角矩形。
  */
 @Composable
 fun BigButton(
@@ -27,8 +27,8 @@ fun BigButton(
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(28.dp),
+            .height(58.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = if (primary) {
             ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,

@@ -6,28 +6,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 /**
- * PomoTick 主题——深色优先，番茄红主色。
+ * PomoTick 主题——深色优先，Apple 设计系统配色。
  *
- * 黑色背景对 OLED 屏幕省电友好（OPPO Watch 4 Pro 使用 OLED）。
+ * - primary: Apple System Red #FF3B30（专注色）
+ * - secondary: Apple System Blue #007AFF（休息色）
+ * - tertiary: Apple Orange #FF9500（长休息/特殊状态）
+ * - 纯黑背景，OLED 屏幕省电友好（OPPO Watch 4 Pro）
+ * - surface / outline 等对齐 Apple dark mode 色板
  */
 private val PomoTickColorScheme = darkColorScheme(
-    primary = Color(0xFFFF5252),
+    primary = Color(0xFFFF3B30),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF3D1313), // More subtle container
+    primaryContainer = Color(0xFF3D1313),
     onPrimaryContainer = Color(0xFFFFDAD6),
-    secondary = Color(0xFF00BFA5), // Teal for Break
+    secondary = Color(0xFF007AFF),
     onSecondary = Color.White,
     secondaryContainer = Color(0xFF003730),
     onSecondaryContainer = Color(0xFF70F7E1),
+    tertiary = Color(0xFFFF9500),
+    onTertiary = Color.White,
     background = Color.Black,
-    onBackground = Color(0xFFEEEEEE),
-    surface = Color(0xFF121212), // Deep surface
-    onSurface = Color(0xFFE2E2E2),
-    surfaceVariant = Color(0xFF242424), // Medium surface
-    onSurfaceVariant = Color(0xFFC4C4C4),
-    error = Color(0xFFFF5252),
+    onBackground = Color(0xFFF5F5F7),
+    surface = Color(0xFF1C1C1E),
+    onSurface = Color(0xFFE5E5EA),
+    surfaceVariant = Color(0xFF2C2C2E),
+    onSurfaceVariant = Color(0xFFAEAEB2),
+    error = Color(0xFFFF3B30),
     onError = Color.Black,
-    outline = Color(0xFF444444)
+    outline = Color(0xFF3A3A3C)
 )
 
 @Composable

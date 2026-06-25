@@ -1,0 +1,101 @@
+{
+  "data": [
+    {
+      "id": "page-timer",
+      "title": "计时器",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782216715000,
+      "canvasData": {
+        "x": 108,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/timer.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-reminder",
+      "title": "到点提醒",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782216715000,
+      "canvasData": {
+        "x": 492,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/reminder.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-settings",
+      "title": "设置",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782216715000,
+      "canvasData": {
+        "x": 866,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/settings.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-action-overlay",
+      "title": "长按操作",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782216715000,
+      "canvasData": {
+        "x": 660,
+        "y": 348,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/action-overlay.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-stats",
+      "title": "统计",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782216715000,
+      "canvasData": {
+        "x": 288,
+        "y": 348,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/stats.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": false,
+    "deviceType": "freeSize",
+    "projectName": "PomoTick 手表 UI",
+    "designLibrary": {
+      "name": "苹果",
+      "id": "dl_builtin_apple",
+      "version": null,
+      "scope": "built-in-global",
+      "path": "c:\\Users\\xiaob\\.trae-cn\\design_libraries\\dl_builtin_apple",
+      "versionSource": "selected-context"
+    },
+    "windowSize": {
+      "width": 800,
+      "height": 600
+    }
+  }
+}
