@@ -64,7 +64,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     val lastLaunchDate: Flow<String?> = dataStore.data.map { it[Keys.LAST_LAUNCH_DATE] }
 
     suspend fun setFocusMinutes(minutes: Int) {
-        dataStore.edit { it[Keys.FOCUS_MINUTES] = minutes.coerceIn(1, 180) }
+        dataStore.edit { it[Keys.FOCUS_MINUTES] = minutes.coerceIn(5, 45) }
     }
 
     suspend fun setShortBreakMinutes(minutes: Int) {

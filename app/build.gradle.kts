@@ -4,6 +4,24 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+
+val releaseStoreFile = localProperties.getProperty("POMOTICK_RELEASE_STORE_FILE")
+val releaseStorePassword = localProperties.getProperty("POMOTICK_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = localProperties.getProperty("POMOTICK_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = localProperties.getProperty("POMOTICK_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.pomotick"
     compileSdk = 34
@@ -12,11 +30,22 @@ android {
         applicationId = "com.pomotick"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         // Restrict resources to Wear OS dimensions
         resourceConfigurations += listOf("en", "zh-rCN")
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -32,6 +61,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

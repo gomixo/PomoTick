@@ -6,10 +6,14 @@ Build **PomoTick**, a lightweight tomato timer for watches, with **OPPO Watch 4 
 
 Primary device:
 
-- OPPO Watch 4 Pro
+- OPPO Watch 4 Pro (model `OWW221`)
 - ColorOS Watch V7.1
 - Android 11 / API 30
-- Square 1.91-inch screen
+- 1.91" LTPO AMOLED curved rectangular panel
+- Resolution: 378 × 496 px (≈ 189 × 248 dp at xhdpi)
+- Visible area: round display area inscribed in the 189 × 248 dp rectangle;
+  keep critical UI within the inscribed safe circle = min(short side) − 2 × inset
+  (OWW221: 189 − 2 × 12 = ~165 dp diameter), centered on screen.
 
 Optimize for: reliable timing, strong but bounded reminders, and simple watch-first operation.
 
@@ -104,7 +108,9 @@ Important behavior:
 ## UI Principles
 
 - Design for watch-first operation.
-- OPPO Watch 4 Pro square screen is the primary layout target.
+- OPPO Watch 4 Pro **rectangular** 189 × 248 dp screen with a **round visible area** (~224 dp diameter circle) is the primary layout target.
+- Always read actual screen size via `BoxWithConstraints`. Never assume a fixed canvas (410 × 410 or otherwise). Use `min(maxWidth, maxHeight) − 24.dp` as the round safe-area diameter.
+- Keep critical UI inside the inscribed circle. Anything in the four corners of the rectangle will be clipped by the curved glass.
 - Layouts should still avoid clipping and unsafe edge placement on round screens.
 - Use large, easy-to-tap primary interaction areas.
 - Avoid crowding the main timer screen with many small persistent buttons.

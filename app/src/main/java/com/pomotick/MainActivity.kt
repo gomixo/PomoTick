@@ -1,15 +1,18 @@
 package com.pomotick
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Window
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -23,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,11 +64,45 @@ import kotlinx.coroutines.launch
  */
 class MainActivity : ComponentActivity() {
 
-    private val requestNotificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
-            // 即使用户拒绝，仍可继续使用 APP（震动 + 视觉反馈），只是通知不出现在通知中心
-            // 不做强制退出逻辑
+    // 记录是否已经从设置页的权限行请求过权限。
+    // 首次点击仍弹系统权限框；若用户选择“不再询问”，下次点击改跳系统设置。
+    private var hasRequestedNotificationFromRow = false
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                REQUEST_POST_NOTIFICATIONS
+            )
         }
+    }
+
+    /**
+     * 设置页入口：先尝试弹权限框；被拒绝且不再询问后跳转系统通知设置。
+     */
+    fun requestOrOpenNotificationSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) return
+
+        val shouldExplain = ActivityCompat.shouldShowRequestPermissionRationale(
+            this, Manifest.permission.POST_NOTIFICATIONS
+        )
+
+        if (!hasRequestedNotificationFromRow || shouldExplain) {
+            requestNotificationPermission()
+            hasRequestedNotificationFromRow = true
+        } else {
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+            startActivity(intent)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // v0.2.1: 到点唤醒时直接显示在锁屏之上 + 自动转屏幕。
@@ -93,7 +131,7 @@ class MainActivity : ComponentActivity() {
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
             if (!granted) {
-                requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                requestNotificationPermission()
             }
         }
 
@@ -112,6 +150,7 @@ private enum class Overlay {
 }
 
 private const val PAGE_TIMER = 1
+private const val REQUEST_POST_NOTIFICATIONS = 100
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -170,6 +209,31 @@ private fun PomoTickRoot() {
                     viewModel = viewModel,
                     onBack = {
                         scope.launch { pagerState.animateScrollToPage(PAGE_TIMER) }
+                    },
+                    onRequestNotificationPermission = {
+                        (context as? MainActivity)?.requestOrOpenNotificationSettings()
+                    },
+                    onRequestBatteryOptimization = {
+                        val result = com.pomotick.system.BatteryOptimizationHelper(
+                            context
+                        ).smartOpenBatterySettings()
+                        when (result) {
+                            com.pomotick.system.BatteryJumpResult.APP_DETAILS -> {
+                                Toast.makeText(
+                                    context,
+                                    "在系统页里选择后台运行/电池不受限制",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            com.pomotick.system.BatteryJumpResult.ALL_FAILED -> {
+                                Toast.makeText(
+                                    context,
+                                    "无法自动跳转，请手动前往系统设置",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            else -> Unit
+                        }
                     }
                 )
                 1 -> TimerScreen(viewModel = viewModel)

@@ -102,6 +102,8 @@ class PomoTickApp : Application() {
                 focusMinutes = settingsStore.focusMinutes.first(),
                 shortBreakMinutes = settingsStore.shortBreakMinutes.first(),
                 longBreakMinutes = settingsStore.longBreakMinutes.first(),
+                focusCyclesBeforeLongBreak = settingsStore.focusCyclesBeforeLongBreak.first(),
+                cyclePosition = settingsStore.cyclePosition.first(),
                 vibrationStrength = settingsStore.vibrationStrength.first(),
                 ringtoneEnabled = settingsStore.ringtoneEnabled.first(),
                 persistentReminder = settingsStore.persistentReminder.first(),
@@ -118,6 +120,12 @@ class PomoTickApp : Application() {
         }.launchIn(appScope)
         settingsStore.longBreakMinutes.onEach { v ->
             _settingsSnapshot.value = _settingsSnapshot.value.copy(longBreakMinutes = v)
+        }.launchIn(appScope)
+        settingsStore.focusCyclesBeforeLongBreak.onEach { v ->
+            _settingsSnapshot.value = _settingsSnapshot.value.copy(focusCyclesBeforeLongBreak = v)
+        }.launchIn(appScope)
+        settingsStore.cyclePosition.onEach { v ->
+            _settingsSnapshot.value = _settingsSnapshot.value.copy(cyclePosition = v)
         }.launchIn(appScope)
         settingsStore.vibrationStrength.onEach { v ->
             _settingsSnapshot.value = _settingsSnapshot.value.copy(vibrationStrength = v)

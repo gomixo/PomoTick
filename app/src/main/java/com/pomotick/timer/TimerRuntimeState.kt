@@ -60,7 +60,7 @@ data class TimerRuntimeState(
         require(cyclePositionAtStart >= 0) { "cyclePositionAtStart must be >= 0" }
         require(longBreakMinutesAtStart in 1..120) { "longBreakMinutesAtStart must be 1..120" }
         require(shortBreakMinutesAtStart in 1..60) { "shortBreakMinutesAtStart must be 1..60" }
-        require(focusMinutesAtStart in 1..180) { "focusMinutesAtStart must be 1..180" }
+        require(focusMinutesAtStart in 5..45) { "focusMinutesAtStart must be 5..45" }
         require(cyclesBeforeLongBreakAtStart in 2..6) {
             "cyclesBeforeLongBreakAtStart must be 2..6"
         }

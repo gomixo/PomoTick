@@ -38,6 +38,12 @@
     <string name="abandon_confirm_no">取消</string>
 
     <string name="settings_title">设置</string>
+
+    <!-- 设置页分组分隔 -->
+    <string name="settings_section_timer">计时</string>
+    <string name="settings_section_reminder">提醒</string>
+    <string name="settings_section_system">系统</string>
+
     <string name="settings_focus_minutes">专注时长</string>
     <string name="settings_short_break">短休息</string>
     <string name="settings_long_break">长休息</string>
@@ -49,6 +55,11 @@
     <string name="vibration_off">关</string>
     <string name="vibration_low">弱</string>
     <string name="vibration_high">强</string>
+
+    <string name="settings_notification_permission">通知权限</string>
+    <string name="settings_notification_denied">允许通知，到点提醒更可靠</string>
+    <string name="settings_notification_granted">通知权限已允许</string>
+    <string name="settings_notification_action_allow">去允许</string>
 
     <string name="stats_title">今日统计</string>
     <string name="stats_today_count">今日完成</string>
@@ -91,4 +102,12 @@
     <!-- v0.2.1: 精确闹钟权限状态提示（设置页） -->
     <string name="settings_exact_alarm_denied">息屏到点提醒可能延迟；请在系统设置中允许精确闹钟</string>
     <string name="settings_exact_alarm_granted">精确闹钟已授权，息屏到点提醒可靠</string>
+
+    <!-- 方案 D 第一层：电池优化引导（设置页） -->
+    <string name="settings_battery_optimization">后台运行</string>
+    <string name="settings_battery_granted">已允许后台运行，到点提醒可靠</string>
+    <string name="settings_battery_denied">未允许后台运行，到点提醒可能延迟或丢失</string>
+    <string name="settings_battery_action_grant">去允许</string>
+    <string name="settings_battery_reliability_title">提醒可靠性</string>
+    <string name="settings_battery_guide_generic">请允许本应用在后台运行，否则到点提醒可能延迟或丢失。</string>
 </resources>

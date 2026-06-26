@@ -5,7 +5,12 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,46 +20,51 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pomotick.R
+import com.pomotick.timer.TimerPhase
 import com.pomotick.ui.TimerViewModel
+import kotlin.math.min
 
 /**
- * v0.2 P1 改版：RINGING 屏提供 2 个大按钮——
+ * RINGING screen — sized for the OPPO Watch 4 Pro round visible area.
  *
- * 1. **"停止声震"**（secondary）—— 走 [TimerEvent.StopRingingOnly]，仅停铃声+震动，
- *    保持 RINGING 状态、启动 §4 等待窗口（30s → 3min → 1 次 15s 重复）。
- *    与通知"停止"Action 完全相同入口。
- *
- * 2. **"知道了"**（primary）—— 走 [TimerEvent.StopRingingAndPrepareNext]，
- *    停声震 + 写 COMPLETED session + 推进轮次 + 进入下一阶段。
- *    Engine 用 runtime 快照决定"下一阶段"——避免 ViewModel 计算绕开通知 Action。
+ * Layout (top → bottom inside the safe-area circle):
+ *  1. Outlined checkmark (20dp) + "Focus Done!" title — same row
+ *  2. Subtitle "当前计时已完成。"
+ *  3. Primary "知道了" button (48dp)
+ *  4. Secondary "停止声震" button (44dp)
  */
 @Composable
 fun ReminderScreen(
     viewModel: TimerViewModel,
     modifier: Modifier = Modifier
 ) {
-    // Pulse animation for checkmark icon
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -66,66 +76,148 @@ fun ReminderScreen(
         label = "pulseScale"
     )
 
-    Column(
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val activity = context as? android.app.Activity
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    // Determine which phase just completed for the title
+    val base by viewModel.baseState.collectAsStateWithLifecycle()
+    val activePhase = base.phase ?: base.selectedPhase
+    val reminderTitle = when (activePhase) {
+        TimerPhase.FOCUS -> stringResource(R.string.reminder_focus_done)
+        TimerPhase.SHORT_BREAK, TimerPhase.LONG_BREAK -> stringResource(R.string.reminder_break_done)
+    }
+
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
     ) {
-        // Icon + Title on same row
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .size(28.dp)
-                    .scale(pulseScale)
-            )
-            Text(
-                text = stringResource(R.string.reminder_focus_done),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1
-            )
+        val density = LocalDensity.current
+        val sidePx = with(density) {
+            min(maxWidth.toPx(), maxHeight.toPx())
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = stringResource(R.string.reminder_completed_body),
-            fontSize = 13.sp,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
+        val centerPx = Offset(
+            x = with(density) { maxWidth.toPx() } / 2f,
+            y = with(density) { maxHeight.toPx() } / 2f
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Subtle radial glow — radius constrained to safe area
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.02f),
+                            Color.Transparent
+                        ),
+                        center = centerPx,
+                        radius = sidePx * 0.55f
+                    )
+                )
+        )
 
-        // Buttons centered with constrained width
         Column(
-            modifier = Modifier.fillMaxWidth(0.85f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Primary: 知道了
-            ReminderButton(
-                label = stringResource(R.string.action_know_it),
-                onClick = { viewModel.onStopRinging() },
-                primary = true
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedCheckmark(
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .scale(pulseScale)
+                )
+
+                Text(
+                    text = reminderTitle,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Start,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = stringResource(R.string.reminder_completed_body),
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
             )
-            // Secondary: 停止声震
-            ReminderButton(
-                label = stringResource(R.string.action_stop_alarm_only),
-                onClick = { viewModel.onStopRingingOnly() },
-                primary = false
-            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(0.9f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ReminderButton(
+                    label = stringResource(R.string.action_know_it),
+                    onClick = { viewModel.onStopRinging() },
+                    primary = true
+                )
+                ReminderButton(
+                    label = stringResource(R.string.action_stop_alarm_only),
+                    onClick = { viewModel.onStopRingingOnly() },
+                    primary = false
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun OutlinedCheckmark(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val strokeCircle = 2.dp.toPx()
+        val strokeCheck = 2.5f.dp.toPx()
+        val w = size.width
+        val h = size.height
+        val radius = (w.coerceAtMost(h) - strokeCircle) / 2f
+
+        drawCircle(
+            color = color,
+            radius = radius,
+            center = center,
+            style = Stroke(width = strokeCircle)
+        )
+
+        drawPath(
+            path = Path().apply {
+                moveTo(w * 0.25f, h * 0.52f)
+                lineTo(w * 0.44f, h * 0.72f)
+                lineTo(w * 0.75f, h * 0.32f)
+            },
+            color = color,
+            style = Stroke(
+                width = strokeCheck,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
+        )
     }
 }
 
@@ -139,9 +231,9 @@ private fun ReminderButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (primary) 60.dp else 52.dp),
+            .height(if (primary) 48.dp else 44.dp),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-        shape = RoundedCornerShape(30.dp),
+        shape = RoundedCornerShape(999.dp),
         colors = if (primary) {
             ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -154,18 +246,19 @@ private fun ReminderButton(
             )
         },
         border = if (!primary) {
-            androidx.compose.foundation.BorderStroke(
+            BorderStroke(
                 1.dp,
-                MaterialTheme.colorScheme.outline
+                MaterialTheme.colorScheme.surfaceVariant
             )
         } else null
     ) {
         Text(
             text = label,
-            fontSize = if (primary) 18.sp else 15.sp,
+            fontSize = if (primary) 15.sp else 13.sp,
             fontWeight = if (primary) FontWeight.SemiBold else FontWeight.Normal,
             textAlign = TextAlign.Center,
-            maxLines = 1
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

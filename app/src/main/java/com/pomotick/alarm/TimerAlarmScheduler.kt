@@ -96,40 +96,81 @@ class TimerAlarmScheduler(private val context: Context) {
     private var scheduledTargetEndAt: Long? = null
 
     /**
+     * 方案 D 第三层增强：是否已注册 `setExactAndAllowWhileIdle` 备份 alarm。
+     *
+     * 与 [scheduledTargetEndAt] 同步更新——`schedule()` 时注册备份，
+     * `cancel()` 时取消备份。`@Volatile` 保证跨协程/线程可见。
+     */
+    @Volatile
+    private var backupAlarmRegistered: Boolean = false
+
+    /**
      * 注册 alarm 到 [targetEndAtEpochMillis] 准点触发。
      *
-     * **去重**：如果上次注册的 target 与新 target 相同，直接返回——避免每 tick 重复
-     * 调 `setAlarmClock` 导致 logcat 噪声和系统调度开销。
+     * **去重**：如果上次注册的 target 与新 target 相同且主+备 alarm 都已注册，
+     * 直接返回——避免每 tick 重复调 `setAlarmClock` 导致 logcat 噪声和系统调度开销。
+     *
+     * 如果 target 相同但备份 alarm 注册失败（`backupAlarmRegistered == false`），
+     * 会重试注册备份 alarm（主路径 alarm 已到位则不重复 setAlarmClock）。
      *
      * **主路径**：`setAlarmClock`（API 21+，OPPO 友好的"用户可见 alarm clock"语义）。
+     *
+     * **方案 D 第三层增强**：同时注册 `setExactAndAllowWhileIdle` 备份 alarm——即便
+     * `setAlarmClock` 被 BmPowerManager 降级，备份 alarm 仍有概率到达。备份 alarm
+     * 不需要 SCHEDULE_EXACT_ALARM 权限（`AllowWhileIdle` 在 doze 下会被放过）。
      *
      * @param targetEndAtEpochMillis 到点时间（wall clock 毫秒）
      */
     fun schedule(targetEndAtEpochMillis: Long) {
-        if (shouldSkipSchedule(scheduledTargetEndAt, targetEndAtEpochMillis)) {
-            Log.d(TAG, "alarmClock already scheduled for $targetEndAtEpochMillis; " +
-                    "skip (dedup hit)")
-            return
+        val sameTarget = scheduledTargetEndAt != null && scheduledTargetEndAt == targetEndAtEpochMillis
+        val needMain = !sameTarget
+        val needBackup = !sameTarget || !backupAlarmRegistered
+
+        if (needMain) {
+            // 主路径：setAlarmClock（OPPO 友好的"用户可见 alarm clock"语义）
+            alarmManager.setAlarmClock(
+                AlarmManager.AlarmClockInfo(targetEndAtEpochMillis, showPendingIntent()),
+                operationPendingIntent()
+            )
         }
 
-        alarmManager.setAlarmClock(
-            AlarmManager.AlarmClockInfo(targetEndAtEpochMillis, showPendingIntent()),
-            operationPendingIntent()
-        )
-        scheduledTargetEndAt = targetEndAtEpochMillis
+        if (needBackup) {
+            // 方案 D 第三层：备份 alarm——即便主路径被拦截仍能触发
+            runCatching {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    targetEndAtEpochMillis,
+                    backupPendingIntent()
+                )
+                backupAlarmRegistered = true
+                Log.d(TAG, "registered backup alarm via setExactAndAllowWhileIdle")
+            }.onFailure { e ->
+                Log.w(TAG, "backup alarm registration failed (non-fatal): ${e.message}")
+                backupAlarmRegistered = false
+            }
+        }
+
+        if (needMain) {
+            scheduledTargetEndAt = targetEndAtEpochMillis
+        }
 
         val secsAway = (targetEndAtEpochMillis - System.currentTimeMillis()) / 1000
         Log.d(TAG, "registered alarmClock for $targetEndAtEpochMillis " +
-                "(in ${secsAway}s, setAlarmClock path)")
+                "(in ${secsAway}s, setAlarmClock + backup path)")
     }
 
     /**
      * 取消当前 alarm。幂等——未注册状态调无副作用。
+     *
+     * 同时取消主路径 alarm + 备份 alarm。`alarmManager.cancel()` 对未注册的
+     * PendingIntent 是安全的 no-op，因此不依赖 [backupAlarmRegistered] 标志判断。
      */
     fun cancel() {
         alarmManager.cancel(operationPendingIntent())
+        alarmManager.cancel(backupPendingIntent())
+        backupAlarmRegistered = false
         scheduledTargetEndAt = null
-        Log.d(TAG, "alarmClock cancelled")
+        Log.d(TAG, "alarmClock cancelled (main + backup)")
     }
 
     /**
@@ -184,6 +225,26 @@ class TimerAlarmScheduler(private val context: Context) {
     }
 
     /**
+     * 方案 D 第三层：备份 alarm 的 PendingIntent。
+     *
+     * 与 [operationPendingIntent] 共用同一个 [TimerAlarmReceiver]——同 action、同 package，
+     * 区别仅在 requestCode 不同（避免 [PendingIntent.equals] 把主备当成同一个）。
+     *
+     * requestCode = 2（与 [com.pomotick.service.NotificationFactory] 中的 stop action 错开）
+     */
+    private fun backupPendingIntent(): PendingIntent {
+        val intent = Intent(ACTION_TIMER_FIRE).apply {
+            setPackage(context.packageName)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            /* requestCode = */ REQUEST_CODE_BACKUP,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    /**
      * 展示 intent：系统 Clock UI 显示"下一个闹钟"时点击触发，打开 [MainActivity]。
      */
     private fun showPendingIntent(): PendingIntent {
@@ -208,6 +269,13 @@ class TimerAlarmScheduler(private val context: Context) {
 
         /** show intent 的固定 requestCode——与 operation 不同避免 PendingIntent.equals 误判 */
         private val REQUEST_CODE_SHOW = 1
+
+        /**
+         * 方案 D 第三层：备份 alarm 的 requestCode——必须与 [REQUEST_CODE] 不同，
+         * 否则 [PendingIntent.equals] 会把主备 alarm 判为同一个，导致 `cancel(operation)`
+         * 同时也清掉备份 alarm。
+         */
+        private val REQUEST_CODE_BACKUP = 2
 
         private const val TAG = "PomoTick/Alarm"
 

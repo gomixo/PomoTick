@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 /**
  * v0.2.1: 息屏到点唤醒 receiver。
  *
- * - 静态注册（Manifest 中 `android:exported="false"`，无 intent-filter）
+ * - 静态注册（Manifest 中 `android:exported="false"`，带 action intent-filter）
  * - 系统 alarm 进程通过 [TimerAlarmScheduler] 创建的 PendingIntent 触发本 Receiver
  * - **不**读 DataStore——直接调 [com.pomotick.data.TimerRepository.handleEvent] 提交 `OnTick`
  * - 运行时状态由 Repository 持有（[com.pomotick.PomoTickApp.onCreate] 同步 bootstrap）
@@ -74,6 +74,12 @@ class TimerAlarmReceiver : BroadcastReceiver() {
                 // v0.2.1: 用 startAlarmWakeup 而不是 start —— 让 Service onStartCommand
                 // 知道这是 alarm 唤起的，重置常驻通知节流状态，立即发 1001 通知。
                 com.pomotick.service.TimerForegroundService.startAlarmWakeup(app)
+                // OPPO/ColorOS Watch 真机修复:Notification + fullScreenIntent 被 HeyNotification
+                // 拦截,无法亮屏,导致震动被 BmNonAndroidState 丢弃。仅在该类设备上直接
+                // 拉起 MainActivity,强制退出低功耗状态。
+                if (com.pomotick.system.OemDetector.isOppoOrColorOs()) {
+                    com.pomotick.system.ActivityWakeupHelper.wakeUp(context)
+                }
                 // 把 OnTick 交给 Engine：自动 RUNNING→RINGING + 发 StartReminder effect
                 repo.handleEvent(
                     com.pomotick.timer.TimerEvent.OnTick(System.currentTimeMillis())

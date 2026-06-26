@@ -33,6 +33,14 @@ lint-results*.xml
 *_log.txt
 screenshot*.png
 /app*.png
+/timer.png
+/stats.png
+/reminder.png
+/setting*.png
+/longpress.png
+/check*.png
+/*页*.png
+/ui.xml
 /logo*.png
 /ic_logo*.png
 /ic_logo*.jpg
@@ -43,16 +51,31 @@ screenshot*.png
 /setup-logo.ps1
 
 # Local AI/tool scratch space
+.agents/
 .artifacts/
 .trae/
 .uploads/
+
+# Local device/debug analysis
+/analyze_*.py
+/check_*.py
+/dump_logs_*.py
+/find_*.py
+/search_*.py
+/oppo_watch_*_analysis.md
+/oppo_watch_*_plan.md
+/pomotick-watch-ui-draft/
+/pomotick-watch-ui-v2/
 
 # Local planning/review notes
 /OPPO 开放平台-OPPO开发者服务中心 1.md
 /PomoTick_v0.2_*.md
 /Tomato项目参考笔记.md
+/battery-optimization-row-fix.md
+/pomotick-timer-settings-ui-optimization.md
 /pomotick-oppo-*-plan.md
 /icon_gemini.svg
+/APP_icon.svg
 
 # Project documents (generated)
 WearOS番茄计时APP开发方案.md
