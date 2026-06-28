@@ -17,7 +17,19 @@ import com.pomotick.MainActivity
  */
 object ActivityWakeupHelper {
 
+    const val ACTION_SHOW_REMINDER = "com.pomotick.action.SHOW_REMINDER"
+    const val EXTRA_SHOW_REMINDER = "com.pomotick.extra.SHOW_REMINDER"
+
     private const val TAG = "PomoTick/Wakeup"
+
+    fun intent(context: Context): Intent =
+        Intent(context, MainActivity::class.java).apply {
+            action = ACTION_SHOW_REMINDER
+            putExtra(EXTRA_SHOW_REMINDER, true)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
 
     /**
      * 从后台拉起 [MainActivity],尝试点亮屏幕。
@@ -30,12 +42,7 @@ object ActivityWakeupHelper {
      */
     fun wakeUp(context: Context) {
         runCatching {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
-            }
-            context.startActivity(intent)
+            context.startActivity(intent(context))
             Log.d(TAG, "started MainActivity from background")
         }.onFailure { e ->
             Log.w(TAG, "wakeUp failed: ${e.message}")

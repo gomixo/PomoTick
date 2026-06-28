@@ -26,8 +26,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -38,7 +41,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,8 +49,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pomotick.R
+import com.pomotick.timer.TimerEngine
 import com.pomotick.timer.TimerPhase
+import com.pomotick.timer.TimerRunState
 import com.pomotick.ui.TimerViewModel
+import com.pomotick.ui.components.KeepScreenOn
 import kotlin.math.min
 
 /**
@@ -76,17 +81,25 @@ fun ReminderScreen(
         label = "pulseScale"
     )
 
-    val context = LocalContext.current
-    DisposableEffect(context) {
-        val activity = context as? android.app.Activity
-        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        onDispose {
-            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    // Determine which phase just completed for the title
+    val base by viewModel.baseState.collectAsStateWithLifecycle()
+    val runtime = base.runtime
+    var repeatReminderAwake by remember(runtime?.sessionId) { mutableStateOf(false) }
+
+    LaunchedEffect(runtime?.sessionId, runtime?.repeatReminderFired) {
+        repeatReminderAwake = false
+        if (runtime?.runState == TimerRunState.RINGING && runtime.repeatReminderFired) {
+            repeatReminderAwake = true
+            kotlinx.coroutines.delay(TimerEngine.REPEAT_REMINDER_DURATION_MS)
+            repeatReminderAwake = false
         }
     }
 
-    // Determine which phase just completed for the title
-    val base by viewModel.baseState.collectAsStateWithLifecycle()
+    val firstReminderAwake = runtime?.runState == TimerRunState.RINGING &&
+            runtime.awaitingRepeatSinceEpochMillis == null &&
+            !runtime.repeatReminderFired
+    KeepScreenOn(enabled = firstReminderAwake || repeatReminderAwake)
+
     val activePhase = base.phase ?: base.selectedPhase
     val reminderTitle = when (activePhase) {
         TimerPhase.FOCUS -> stringResource(R.string.reminder_focus_done)
@@ -173,12 +186,18 @@ fun ReminderScreen(
             ) {
                 ReminderButton(
                     label = stringResource(R.string.action_know_it),
-                    onClick = { viewModel.onStopRinging() },
+                    onClick = {
+                        repeatReminderAwake = false
+                        viewModel.onStopRinging()
+                    },
                     primary = true
                 )
                 ReminderButton(
                     label = stringResource(R.string.action_stop_alarm_only),
-                    onClick = { viewModel.onStopRingingOnly() },
+                    onClick = {
+                        repeatReminderAwake = false
+                        viewModel.onStopRingingOnly()
+                    },
                     primary = false
                 )
             }

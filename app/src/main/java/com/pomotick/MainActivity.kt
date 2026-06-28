@@ -3,7 +3,6 @@ package com.pomotick
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -236,7 +235,10 @@ private fun PomoTickRoot() {
                         }
                     }
                 )
-                1 -> TimerScreen(viewModel = viewModel)
+                1 -> TimerScreen(
+                    viewModel = viewModel,
+                    isVisible = pagerState.currentPage == PAGE_TIMER
+                )
                 2 -> TodayStatsScreen(
                     viewModel = viewModel,
                     onBack = {

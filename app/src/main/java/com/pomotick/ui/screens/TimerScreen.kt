@@ -52,6 +52,7 @@ import com.pomotick.timer.TimeFormatter
 import com.pomotick.timer.TimerPhase
 import com.pomotick.timer.TimerRunState
 import com.pomotick.ui.TimerViewModel
+import com.pomotick.ui.components.KeepScreenOn
 import com.pomotick.ui.components.watchSafeDiameter
 import com.pomotick.ui.theme.LocalExtendedColors
 
@@ -69,6 +70,7 @@ import com.pomotick.ui.theme.LocalExtendedColors
 @Composable
 fun TimerScreen(
     viewModel: TimerViewModel,
+    isVisible: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val base by viewModel.baseState.collectAsStateWithLifecycle()
@@ -81,6 +83,8 @@ fun TimerScreen(
     val canTap = isRunning || isPaused || isIdle
 
     val activePhase = base.phase ?: base.selectedPhase
+    KeepScreenOn(enabled = isVisible && activePhase == TimerPhase.FOCUS && isRunning)
+
     val phaseColor = when (activePhase) {
         TimerPhase.FOCUS -> MaterialTheme.colorScheme.primary
         TimerPhase.SHORT_BREAK -> MaterialTheme.colorScheme.secondary
@@ -105,7 +109,16 @@ fun TimerScreen(
     }
 
     val totalCycles = base.settings.focusCyclesBeforeLongBreak.coerceAtLeast(1)
-    val activeCycleIndex = base.runtime?.cyclePositionAtStart ?: base.settings.cyclePosition
+    val rawCycleIndex = base.runtime?.cyclePositionAtStart ?: base.settings.cyclePosition
+    // 休息阶段轮次指示器不提前递增：
+    // 专注 N 完成后 cyclePosition 已 +1，但休息期间仍应显示 "N/total"，
+    // 直到下一次专注开始才显示 "N+1/total"。
+    val activeCycleIndex = if (activePhase == TimerPhase.SHORT_BREAK
+        || activePhase == TimerPhase.LONG_BREAK) {
+        (rawCycleIndex - 1).coerceAtLeast(0)
+    } else {
+        rawCycleIndex
+    }
     val cycleText = "${(activeCycleIndex + 1).coerceAtMost(totalCycles)}/$totalCycles"
 
     BoxWithConstraints(

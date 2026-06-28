@@ -9,6 +9,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.pomotick.MainActivity
 import com.pomotick.R
+import com.pomotick.system.ActivityWakeupHelper
 import com.pomotick.timer.TimeFormatter
 import com.pomotick.timer.TimerPhase
 
@@ -132,9 +133,7 @@ object NotificationFactory {
      * - 不需要 Activity 起来就能处理
      */
     fun buildRinging(context: Context, phase: TimerPhase): Notification {
-        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
+        val openAppIntent = ActivityWakeupHelper.intent(context)
         val contentIntent = PendingIntent.getActivity(
             context,
             1,

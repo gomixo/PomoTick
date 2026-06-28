@@ -55,6 +55,7 @@ screenshot*.png
 .artifacts/
 .trae/
 .uploads/
+PomoTick-Docs/
 
 # Local device/debug analysis
 /analyze_*.py
@@ -78,6 +79,7 @@ screenshot*.png
 /APP_icon.svg
 
 # Project documents (generated)
+docs/
 WearOS番茄计时APP开发方案.md
 WearOS番茄计时APP环境配置指南.md
 
